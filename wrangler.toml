@@ -1,0 +1,10 @@
+name = "gemenii-tracker"
+compatibility_date = "2024-11-01"
+pages_build_output_dir = "public"
+
+# După ce creezi namespace-ul KV (vezi README.md), pune aici ID-ul real,
+# SAU (mai simplu) leagă-l direct din dashboard-ul Cloudflare Pages:
+# Settings → Functions → KV namespace bindings → variable name "BABY_KV"
+# [[kv_namespaces]]
+# binding = "BABY_KV"
+# id = "PUNE_AICI_ID_UL_NAMESPACE_ULUI"

@@ -1,0 +1,11 @@
+{
+  "name": "Gemenii · Tracker",
+  "short_name": "Gemenii",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#14141c",
+  "theme_color": "#171B26",
+  "icons": [
+    { "src": "icon.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
