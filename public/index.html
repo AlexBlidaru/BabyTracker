@@ -19,6 +19,9 @@
 
 <div id="app">
 
+  <!-- ===== PULL TO REFRESH INDICATOR ===== -->
+  <div class="ptr-indicator" id="ptrIndicator"><span class="ptr-spinner"></span></div>
+
   <!-- ===== HEADER ===== -->
   <header class="topbar">
     <div class="topbar-row">
@@ -49,9 +52,9 @@
 
       <div class="upcoming-band" id="upcomingBand"></div>
 
-      <div id="sleepPredictionWrap"></div>
+      <div class="vitals-strip" id="vitalsStrip"></div>
 
-      <div class="pulse-divider" aria-hidden="true"></div>
+      <div id="sleepPredictionWrap"></div>
 
       <h2 class="section-title">Acțiune rapidă</h2>
       <div class="quick-grid" id="quickGrid"></div>
@@ -83,7 +86,7 @@
         <button class="btn-secondary" id="btnMedPlan">+ Plan nou</button>
       </div>
 
-      <h2 class="section-title">Planuri active</h2>
+      <h2 class="section-title">Planuri</h2>
       <div class="med-plans-list" id="medPlansList"></div>
 
       <h2 class="section-title">Calendar administrări</h2>
@@ -111,7 +114,10 @@
 
     <!-- SETTINGS -->
     <section id="view-settings" class="view">
-      <h2 class="section-title">Bebeluși</h2>
+      <h2 class="section-title">Profil bebeluși</h2>
+      <div id="babyProfiles" class="baby-profiles"></div>
+
+      <h2 class="section-title">Editează</h2>
       <div id="babySettings" class="baby-settings"></div>
 
       <h2 class="section-title">Date comune</h2>
