@@ -54,7 +54,7 @@ h1,h2,h3{ font-family: var(--font-display); margin:0; }
 }
 /* fundal colorat cu nuanța bebelușului selectat; revine standard la "Amândoi" */
 #app.bg-tinted{
-  background: linear-gradient(180deg, color-mix(in srgb, var(--tint, transparent) 35%, var(--bg)) 0%, var(--bg) 460px);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tint, transparent) 70%, var(--bg)) 0%, var(--bg) 750px);
 }
 
 /* ============ PULL TO REFRESH ============ */
