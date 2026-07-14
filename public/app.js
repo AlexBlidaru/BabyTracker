@@ -233,16 +233,31 @@ function applyBackgroundTint(){
 
 /* ================= RENDER: TOP SWITCH ================= */
 
+let babySwitchDirection = null; // 'left' | 'right' | null — folosit pentru animația de tranziție
+
+function babyOrder(){ return [...state.babies.map(b=>b.id), 'all']; }
+
+function setCurrentBaby(newId){
+  if(newId === ui.currentBaby) return;
+  const order = babyOrder();
+  const oldIdx = order.indexOf(ui.currentBaby);
+  const newIdx = order.indexOf(newId);
+  babySwitchDirection = newIdx > oldIdx ? 'left' : 'right';
+  ui.currentBaby = newId;
+  renderAll();
+}
+
 function renderTwinSwitch(){
   const el = document.getElementById('twinSwitch');
   const opts = [...state.babies, {id:'all', name:'Ambele'}];
   el.innerHTML = opts.map(b=>{
     const active = ui.currentBaby === b.id ? 'active' : '';
     const dot = b.color ? `<span class="dot" style="background:${b.color}"></span>` : '';
-    return `<button class="twin-tab ${active}" data-baby="${b.id}">${dot}${b.name}</button>`;
+    const borderColor = (active && b.id!=='all') ? `style="border-color:${b.color}"` : '';
+    return `<button class="twin-tab ${active}" data-baby="${b.id}" ${borderColor}>${dot}${b.name}</button>`;
   }).join('');
   el.querySelectorAll('.twin-tab').forEach(btn=>{
-    btn.onclick = ()=>{ ui.currentBaby = btn.dataset.baby; renderAll(); };
+    btn.onclick = ()=> setCurrentBaby(btn.dataset.baby);
   });
 }
 
@@ -256,34 +271,60 @@ function lastEntry(arr, babyId){
   return filtered.reduce((a,b)=> new Date(a.end||a.start||a.time) > new Date(b.end||b.start||b.time) ? a : b);
 }
 
-function renderStatusRow(){
-  const el = document.getElementById('statusRow');
-  el.innerHTML = state.babies.map(b=>{
-    const sleeping = activeSleepFor(b.id);
-    const feeding = activeFeedFor(b.id);
-    const lastSleep = lastEntry(state.logs.sleep, b.id);
-    const lastFeed = lastEntry(state.logs.feeding, b.id);
-    const lastDiaper = lastEntry(state.logs.diaper, b.id);
+function babyStatusInfo(b){
+  const sleeping = activeSleepFor(b.id);
+  const feeding = activeFeedFor(b.id);
+  const lastSleep = lastEntry(state.logs.sleep, b.id);
+  const lastFeed = lastEntry(state.logs.feeding, b.id);
+  const lastDiaper = lastEntry(state.logs.diaper, b.id);
 
-    let stateLabel, stateSub, activeClass='';
-    if(sleeping){
-      stateLabel = 'Doarme'; stateSub = 'de la ' + fmtTime(sleeping.start); activeClass='active-timer';
-    } else if(feeding){
-      const map = {breastL:'Alăptare (S)', breastR:'Alăptare (D)'};
-      stateLabel = map[feeding.subtype] || 'Mănâncă'; stateSub = 'de la ' + fmtTime(feeding.start); activeClass='active-timer';
-    } else {
-      stateLabel = 'Treaz';
-      stateSub = lastSleep ? `somn ${timeAgo(lastSleep.end||lastSleep.start)}` : 'fără date de somn';
-    }
-    return `<div class="status-card ${activeClass}" style="color:${b.color}">
-      <div class="baby-name" style="color:var(--text)"><span class="dot" style="background:${b.color}"></span>${b.name}</div>
-      <div class="state-label">${stateLabel}</div>
-      <div class="state-sub">${stateSub}</div>
-      <div class="state-sub" style="margin-top:6px;opacity:.8">🍼 ${lastFeed?timeAgo(lastFeed.end||lastFeed.start):'—'} · 💧 ${lastDiaper?timeAgo(lastDiaper.time):'—'}</div>
-    </div>`;
-  }).join('');
+  let stateLabel, stateSub, activeClass='';
+  if(sleeping){
+    stateLabel = 'Doarme'; stateSub = 'de la ' + fmtTime(sleeping.start); activeClass='active-timer';
+  } else if(feeding){
+    const map = {breastL:'Alăptare (S)', breastR:'Alăptare (D)'};
+    stateLabel = map[feeding.subtype] || 'Mănâncă'; stateSub = 'de la ' + fmtTime(feeding.start); activeClass='active-timer';
+  } else {
+    stateLabel = 'Treaz';
+    stateSub = lastSleep ? `somn ${timeAgo(lastSleep.end||lastSleep.start)}` : 'fără date de somn';
+  }
+  return { stateLabel, stateSub, activeClass, lastFeed, lastDiaper };
 }
 
+function renderStatusRow(){
+  const el = document.getElementById('statusRow');
+  const animClass = babySwitchDirection === 'left' ? 'anim-left' : babySwitchDirection === 'right' ? 'anim-right' : '';
+  babySwitchDirection = null;
+
+  if(ui.currentBaby === 'all'){
+    el.className = 'status-row';
+    el.innerHTML = state.babies.map(b=>{
+      const info = babyStatusInfo(b);
+      return `<div class="status-card ${info.activeClass}" style="color:${b.color}">
+        <div class="baby-name" style="color:var(--text)"><span class="dot" style="background:${b.color}"></span>${escapeHtml(b.name)}</div>
+        <div class="state-label">${info.stateLabel}</div>
+        <div class="state-sub">${info.stateSub}</div>
+        <div class="state-sub" style="margin-top:6px;opacity:.8">🍼 ${info.lastFeed?timeAgo(info.lastFeed.end||info.lastFeed.start):'—'} · 💧 ${info.lastDiaper?timeAgo(info.lastDiaper.time):'—'}</div>
+      </div>`;
+    }).join('');
+  } else {
+    const b = baby(ui.currentBaby);
+    const info = babyStatusInfo(b);
+    el.className = 'status-single';
+    el.innerHTML = `<div class="status-single-inner ${info.activeClass}" style="border-color:${b.color}">
+      <div class="baby-name" style="color:var(--text)"><span class="dot" style="background:${b.color}"></span>${escapeHtml(b.name)}</div>
+      <div class="state-label" style="color:${b.color}">${info.stateLabel}</div>
+      <div class="state-sub">${info.stateSub}</div>
+      <div class="state-sub" style="margin-top:10px;opacity:.85">🍼 ${info.lastFeed?timeAgo(info.lastFeed.end||info.lastFeed.start):'—'} · 💧 ${info.lastDiaper?timeAgo(info.lastDiaper.time):'—'}</div>
+    </div>`;
+  }
+
+  if(animClass){
+    el.classList.remove('anim-left','anim-right');
+    void el.offsetWidth; // forțează reflow ca animația să ruleze din nou
+    el.classList.add(animClass);
+  }
+}
 
 /* ================= RENDER: UPCOMING TASKS BAND (din planurile de meds) ================= */
 
@@ -1772,13 +1813,13 @@ document.getElementById('btnReset').onclick = ()=>{
     startX = null; startY = null;
 
     if(Math.abs(dx) > THRESHOLD && Math.abs(dx) > Math.abs(dy) * 1.5){
-      const order = [...state.babies.map(b=>b.id), 'all'];
+      const order = babyOrder();
       const idx = order.indexOf(ui.currentBaby);
-      let nextIdx;
-      if(dx < 0) nextIdx = (idx + 1) % order.length;
-      else nextIdx = (idx - 1 + order.length) % order.length;
-      ui.currentBaby = order[nextIdx];
-      renderAll();
+      // fără "wrap-around": la capete, o glisare suplimentară în aceeași direcție nu face nimic
+      const nextIdx = dx < 0 ? idx + 1 : idx - 1;
+      if(nextIdx >= 0 && nextIdx < order.length){
+        setCurrentBaby(order[nextIdx]);
+      }
     }
   }, {passive:true});
 })();
