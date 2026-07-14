@@ -234,7 +234,7 @@ function applyBackgroundTint(){
 
 function renderTwinSwitch(){
   const el = document.getElementById('twinSwitch');
-  const opts = [...state.babies, {id:'all', name:'Amândoi'}];
+  const opts = [...state.babies, {id:'all', name:'Ambele'}];
   el.innerHTML = opts.map(b=>{
     const active = ui.currentBaby === b.id ? 'active' : '';
     const dot = b.color ? `<span class="dot" style="background:${b.color}"></span>` : '';
@@ -937,7 +937,7 @@ function nextDoseTimeForPlan(plan){
 
 function renderMedsBabyToggle(){
   const el = document.getElementById('medsBabyToggle');
-  const opts = [...state.babies, {id:'all', name:'Amândoi'}];
+  const opts = [...state.babies, {id:'all', name:'Ambele'}];
   el.innerHTML = opts.map(b=>{
     const active = ui.medsBaby===b.id ? 'active' : '';
     return `<button class="chip ${active}" data-b="${b.id}" style="${active&&b.color?'border-color:'+b.color+';color:'+b.color:''}">${escapeHtml(b.name)}</button>`;
