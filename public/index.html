@@ -96,6 +96,9 @@
     <!-- STATS / OVERVIEW -->
     <section id="view-stats" class="view">
       <p class="settings-hint" style="margin-bottom:14px;">Ultimele 7 zile, comparativ pentru amândoi.</p>
+      <div class="tl-empty" id="statsChartsUnavailable" style="display:none; margin-bottom:14px;">
+        Graficele nu s-au putut încărca (probabil conexiunea la internet blochează o resursă externă). Restul aplicației funcționează normal — încearcă pe altă rețea sau reîncarcă pagina.
+      </div>
 
       <div class="stat-chart-card">
         <div class="stat-chart-title">Somn (ore/zi)</div>
@@ -112,6 +115,7 @@
       <div class="stat-chart-card">
         <div class="stat-chart-title">Evoluție greutate (kg)</div>
         <canvas id="statGrowthChart" height="180"></canvas>
+        <div class="tl-empty" id="statGrowthEmpty" style="display:none;">Adaugă cel puțin o măsurătoare la Creștere ca să vezi evoluția aici.</div>
       </div>
     </section>
 

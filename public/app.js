@@ -1339,9 +1339,13 @@ function last7Days(){
 function isSameDay(a,b){ return a.toDateString()===b.toDateString(); }
 
 function buildBarChart(canvasId, key, labels, datasets){
-  if(typeof Chart === 'undefined') return;
   const ctx = document.getElementById(canvasId);
   if(!ctx) return;
+  if(typeof Chart === 'undefined'){
+    ctx.style.display = 'none';
+    return;
+  }
+  ctx.style.display = 'block';
   try{
     if(statCharts[key]) statCharts[key].destroy();
     statCharts[key] = new Chart(ctx, {
@@ -1359,6 +1363,13 @@ function buildBarChart(canvasId, key, labels, datasets){
 }
 
 function renderStats(){
+  const unavailableEl = document.getElementById('statsChartsUnavailable');
+  const chartOk = typeof Chart !== 'undefined';
+  if(unavailableEl) unavailableEl.style.display = chartOk ? 'none' : 'block';
+  if(!chartOk){
+    showErrorBanner('Chart.js nu s-a încărcat (verifică rețeaua) — graficele din Ansamblu nu pot fi desenate momentan.');
+  }
+
   const days = last7Days();
   const labels = days.map(d=> d.toLocaleDateString('ro-RO',{weekday:'short'}));
 
@@ -1396,8 +1407,8 @@ function renderStats(){
 }
 
 function renderGrowthStatsChart(){
-  if(typeof Chart === 'undefined') return;
   const ctx = document.getElementById('statGrowthChart');
+  const emptyEl = document.getElementById('statGrowthEmpty');
   if(!ctx) return;
 
   const allDates = new Set();
@@ -1406,8 +1417,14 @@ function renderGrowthStatsChart(){
 
   if(!sortedDates.length){
     if(statCharts.growth){ statCharts.growth.destroy(); statCharts.growth = null; }
+    ctx.style.display = 'none';
+    if(emptyEl) emptyEl.style.display = 'block';
     return;
   }
+  ctx.style.display = 'block';
+  if(emptyEl) emptyEl.style.display = 'none';
+
+  if(typeof Chart === 'undefined') return;
 
   const labels = sortedDates.map(d=> new Date(d).toLocaleDateString('ro-RO',{day:'2-digit',month:'short'}));
   const datasets = state.babies.map(b=>{
