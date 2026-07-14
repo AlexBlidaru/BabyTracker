@@ -141,21 +141,6 @@ main{ flex:1; padding: 14px 18px 130px; }
 .upcoming-chip .uc-time{ font-family: var(--font-display); font-size:15px; margin-top:3px; }
 .upcoming-chip .uc-sub{ font-size:10.5px; color: var(--text-faint); margin-top:1px; white-space:nowrap; }
 
-/* ============ VITALS STRIP (referință bpm standard pe vârstă) ============ */
-.vitals-strip{ display:flex; gap:8px; margin-top:10px; }
-.vitals-card{
-  flex:1; background: var(--surface); border:1px solid var(--border); border-radius: var(--radius-md);
-  padding: 9px 12px; display:flex; align-items:center; gap:9px;
-}
-.vitals-card .vheart{ font-size:16px; line-height:1; animation: vheartbeat 1.15s ease-in-out infinite; flex-shrink:0; }
-@keyframes vheartbeat{ 0%,100%{ transform:scale(1);} 25%{ transform:scale(1.18);} 40%{ transform:scale(1);} }
-@media (prefers-reduced-motion: reduce){ .vitals-card .vheart{ animation:none; } }
-.vitals-card .vtext{ min-width:0; }
-.vitals-card .vname{ font-size:11px; font-weight:700; color: var(--text-dim); }
-.vitals-card .vbpm{ font-family: var(--font-display); font-size:14.5px; font-weight:600; }
-.vitals-card .vbpm small{ font-family: var(--font-body); font-size:10px; color: var(--text-faint); font-weight:600; }
-.vitals-card.vempty{ color: var(--text-faint); font-size:11.5px; align-items:center; justify-content:center; text-align:center; }
-
 /* ============ QUICK ACTIONS ============ */
 .quick-grid{ display:grid; grid-template-columns: repeat(3,1fr); gap:10px; }
 .quick-btn{
@@ -238,9 +223,19 @@ main{ flex:1; padding: 14px 18px 130px; }
 .med-plan-next.finished{ color: var(--text-faint); font-weight:600; font-style:italic; }
 .med-plan-actions{ display:flex; gap:8px; margin-top:10px; }
 .med-plan-actions button{ flex:1; padding:9px; border-radius:10px; font-weight:700; font-size:12.5px; border:1px solid var(--border); background:var(--surface-2); color:var(--text); }
-.med-plan-actions .btn-give{ background: var(--twinA-soft); border-color: var(--twinA); color: var(--twinA); }
 .med-plan-icon-btn{ background:none; border:none; color:var(--text-faint); padding:4px; font-size:16px; }
 .med-plan-paused, .med-plan-finished{ opacity:.55; }
+
+.dose-dropdown{ margin-top:10px; border-top:1px solid var(--border); padding-top:8px; }
+.dose-dropdown-toggle{
+  width:100%; display:flex; align-items:center; justify-content:space-between;
+  background:none; border:none; color:var(--text-dim); font-weight:700; font-size:12.5px; padding:4px 2px;
+}
+.dose-arrow{ transition: transform .2s ease; font-size:23px; }
+.dose-arrow.open{ transform: rotate(180deg); }
+.dose-check-list-inline{ display:flex; flex-direction:column; gap:2px; max-height:230px; overflow-y:auto; margin-top:4px; }
+.dose-check-row{ display:flex; align-items:center; gap:10px; padding:7px 4px; border-bottom:1px solid var(--border); font-size:13px; cursor:pointer; }
+.dose-check-row input[type=checkbox]{ width:19px; height:19px; accent-color: var(--twinA); flex-shrink:0; }
 
 .agenda-day-label{ font-size:12px; color:var(--text-faint); font-weight:700; margin: 12px 2px 2px; text-transform:uppercase; letter-spacing:.06em; }
 .agenda-item{ background: var(--surface); border:1px solid var(--border); border-radius: var(--radius-md); padding: 11px 13px; display:flex; align-items:center; gap:11px; }

@@ -144,6 +144,7 @@ let ui = {
   growthBaby: 'a',
   timelineType: 'all',
   medsBaby: 'all',
+  medsFilter: 'active',
 };
 let pendingSave = false;
 let saveTimeout = null;
@@ -283,35 +284,6 @@ function renderStatusRow(){
   }).join('');
 }
 
-/* ================= RENDER: VITALS STRIP (referință bpm standard pe vârstă) ================= */
-
-function getStandardBpm(birthDate){
-  if(!birthDate) return null;
-  const ageDays = Math.floor((Date.now() - new Date(birthDate).getTime())/(24*3600*1000));
-  if(ageDays < 0) return null;
-  if(ageDays < 28) return {label:'nou-născut', bpm:140};
-  if(ageDays < 365) return {label:'sugar', bpm:120};
-  if(ageDays < 730) return {label:'1-2 ani', bpm:110};
-  return {label:'peste 2 ani', bpm:100};
-}
-
-function renderVitalsStrip(){
-  const el = document.getElementById('vitalsStrip');
-  if(!el) return;
-  el.innerHTML = state.babies.map(b=>{
-    const ref = getStandardBpm(b.birthDate);
-    if(!ref){
-      return `<div class="vitals-card vempty">Adaugă data nașterii pt. ${escapeHtml(b.name)} în Setări</div>`;
-    }
-    return `<div class="vitals-card" title="Interval standard orientativ pentru vârstă — nu e o măsurătoare reală">
-      <span class="vheart" style="color:${b.color}">❤</span>
-      <div class="vtext">
-        <div class="vname">${escapeHtml(b.name)}</div>
-        <div class="vbpm">~${ref.bpm} <small>bpm · ${ref.label}</small></div>
-      </div>
-    </div>`;
-  }).join('');
-}
 
 /* ================= RENDER: UPCOMING TASKS BAND (din planurile de meds) ================= */
 
@@ -935,6 +907,17 @@ function nextDoseTimeForPlan(plan){
   return new Date(new Date(lastTime).getTime() + plan.intervalHours*3600000);
 }
 
+/* planuri "Ambele" = două planuri identice, legate printr-un groupId comun */
+function getPlanGroup(plan){
+  if(!plan.groupId) return [plan];
+  return state.logs.medPlans.filter(p=>p.groupId===plan.groupId);
+}
+function planGroupLabel(plan){
+  const group = getPlanGroup(plan);
+  const ids = group.map(p=>p.babyId);
+  return ids.length>1 ? 'Ambele' : baby(plan.babyId).name;
+}
+
 function renderMedsBabyToggle(){
   const el = document.getElementById('medsBabyToggle');
   const opts = [...state.babies, {id:'all', name:'Ambele'}];
@@ -946,14 +929,68 @@ function renderMedsBabyToggle(){
 }
 function medsFilterIds(){ return ui.medsBaby==='all' ? state.babies.map(b=>b.id) : [ui.medsBaby]; }
 
+function renderMedsStatusFilter(){
+  const el = document.getElementById('medsStatusFilter');
+  if(!el) return;
+  const opts = [
+    {k:'active', l:'Active'},
+    {k:'inactive', l:'Pauză / încheiate'},
+    {k:'all', l:'Toate'},
+  ];
+  el.innerHTML = opts.map(o=>`<button class="chip ${ui.medsFilter===o.k?'active':''}" data-f="${o.k}">${o.l}</button>`).join('');
+  el.querySelectorAll('.chip').forEach(c=> c.onclick = ()=>{ ui.medsFilter = c.dataset.f; renderMedPlans(); });
+}
+
+let medListExpanded = {}; // stare doar de UI (nu se salvează): true = arată toate dozele, altfel doar următoarele 3 nebifate
+
+function isOccurrenceGiven(group, occ){
+  return group.every(p=> state.logs.medDoses.some(d=>
+    d.planId===p.id && Math.abs(new Date(d.scheduledTime||d.time) - occ) < 30*60*1000
+  ));
+}
+function markOccurrence(group, occ, given){
+  if(given){
+    group.forEach(p=>{
+      state.logs.medDoses.push({ id: uid(), planId: p.id, babyId: p.babyId, name: p.name, doseText: p.doseText, scheduledTime: occ.toISOString(), time: occ.toISOString(), notes:'' });
+    });
+  } else {
+    group.forEach(p=>{
+      const idx = state.logs.medDoses.findIndex(d=> d.planId===p.id && Math.abs(new Date(d.scheduledTime||d.time) - occ) < 30*60*1000);
+      if(idx>-1) state.logs.medDoses.splice(idx,1);
+    });
+  }
+}
+
 function renderMedPlans(){
   const el = document.getElementById('medPlansList');
   const ids = medsFilterIds();
-  const plans = state.logs.medPlans.filter(p=> ids.includes(p.babyId));
-  if(!plans.length){ el.innerHTML = `<div class="tl-empty">Niciun plan de medicație.</div>`; return; }
+  let plans = state.logs.medPlans.filter(p=> ids.includes(p.babyId));
+
+  // arătăm un singur card per grup "Ambele", ca să nu se dubleze
+  const seenGroups = new Set();
+  plans = plans.filter(p=>{
+    if(!p.groupId) return true;
+    if(seenGroups.has(p.groupId)) return false;
+    seenGroups.add(p.groupId);
+    return true;
+  });
+
+  // filtru: active / pe pauză sau încheiate / toate
+  if(ui.medsFilter === 'active'){
+    plans = plans.filter(p=> !p.paused && !isPlanFinished(p));
+  } else if(ui.medsFilter === 'inactive'){
+    plans = plans.filter(p=> p.paused || isPlanFinished(p));
+  }
+
+  if(!plans.length){ el.innerHTML = `<div class="tl-empty">Niciun plan${ui.medsFilter==='active'?' activ':ui.medsFilter==='inactive'?' pe pauză sau încheiat':''}.</div>`; return; }
 
   el.innerHTML = plans.map(plan=>{
-    const b = baby(plan.babyId);
+    const label = planGroupLabel(plan);
+    const group = getPlanGroup(plan);
+    const isBoth = group.length>1;
+    const dotHtml = isBoth
+      ? `<span class="dot" style="background:linear-gradient(90deg,${baby(group[0].babyId).color},${baby(group[1].babyId).color})"></span>`
+      : `<span class="dot" style="background:${baby(plan.babyId).color}"></span>`;
     const finished = isPlanFinished(plan);
     const givenCount = state.logs.medDoses.filter(d=>d.planId===plan.id).length;
 
@@ -972,42 +1009,91 @@ function renderMedPlans(){
       nextHtml = `<div class="med-plan-next ${overdue?'overdue':'upcoming'}">${overdue?'Întârziat · era la ':'Următoarea la '}${fmtTime(next)} · ${dayLabel(next.toISOString())}</div>`;
     }
 
+    // lista de doze: implicit doar următoarele 3 nebifate; expandabilă complet
+    const occurrences = generatePlanOccurrences(plan);
+    const expanded = !!medListExpanded[plan.id];
+    let rows;
+    if(expanded){
+      rows = occurrences.map((occ,idx)=> ({occ, idx, given: isOccurrenceGiven(group, occ)}));
+    } else {
+      rows = occurrences
+        .map((occ,idx)=> ({occ, idx, given: isOccurrenceGiven(group, occ)}))
+        .filter(r=>!r.given)
+        .slice(0,3);
+    }
+
+    let dosesHtml;
+    if(!occurrences.length){
+      dosesHtml = `<div class="tl-empty" style="padding:14px 4px;font-size:12.5px;">Niciun program generat.</div>`;
+    } else if(!rows.length){
+      dosesHtml = `<div class="tl-empty" style="padding:14px 4px;font-size:12.5px;">Toate dozele au fost administrate.</div>`;
+    } else {
+      dosesHtml = rows.map(r=>`<label class="dose-check-row" data-plan="${plan.id}" data-occ-idx="${r.idx}">
+        <input type="checkbox" ${r.given?'checked':''}>
+        <span>${r.occ.toLocaleDateString('ro-RO')} – ${fmtTime(r.occ.toISOString())}</span>
+      </label>`).join('');
+    }
+
     return `<div class="med-plan-card ${plan.paused?'med-plan-paused':''} ${finished?'med-plan-finished':''}" data-id="${plan.id}">
       <div class="med-plan-top">
         <div>
-          <div class="med-plan-name"><span class="dot" style="background:${b.color}"></span>${escapeHtml(plan.name)}</div>
+          <div class="med-plan-name">${dotHtml}${escapeHtml(plan.name)} <span class="tl-baby-name">${escapeHtml(label)}</span></div>
           <div class="med-plan-dose">${escapeHtml(plan.doseText||'')}${plan.doseText?' · ':''}la fiecare ${plan.intervalHours}h</div>
           ${progressHtml}
         </div>
         <button class="med-plan-icon-btn" data-edit="${plan.id}">✎</button>
       </div>
       ${nextHtml}
-      <div class="med-plan-actions">
-        ${(!plan.paused && !finished)?`<button class="btn-give" data-give="${plan.id}">Am administrat acum</button>`:''}
-        ${!finished?`<button data-pause="${plan.id}">${plan.paused?'Reactivează':'Pauză'}</button>`:''}
+      ${!finished?`<div class="med-plan-actions">
+        <button data-pause="${plan.id}">${plan.paused?'Reactivează':'Pauză'}</button>
+      </div>`:''}
+      <div class="dose-dropdown">
+        <button class="dose-dropdown-toggle" data-toggle="${plan.id}">
+          <span>${expanded?'Toate dozele':'Următoarele doze'}</span>
+          <span class="dose-arrow ${expanded?'open':''}">▾</span>
+        </button>
+        <div class="dose-check-list-inline">${dosesHtml}</div>
       </div>
     </div>`;
   }).join('');
 
-  el.querySelectorAll('[data-give]').forEach(btn=>{
-    btn.onclick = ()=>{
-      const plan = state.logs.medPlans.find(p=>p.id===btn.dataset.give);
-      const scheduledTime = nextDoseTimeForPlan(plan).toISOString();
-      state.logs.medDoses.push({ id: uid(), planId: plan.id, babyId: plan.babyId, name: plan.name, doseText: plan.doseText, scheduledTime, time: nowISO(), notes:'' });
-      scheduleSave(); renderMeds();
-    };
-  });
   el.querySelectorAll('[data-pause]').forEach(btn=>{
-    btn.onclick = ()=>{
+    btn.onclick = (e)=>{
+      e.stopPropagation();
       const plan = state.logs.medPlans.find(p=>p.id===btn.dataset.pause);
-      plan.paused = !plan.paused;
+      const group = getPlanGroup(plan);
+      const newPaused = !plan.paused;
+      group.forEach(p=> p.paused = newPaused);
       scheduleSave(); renderMeds();
     };
   });
   el.querySelectorAll('[data-edit]').forEach(btn=>{
-    btn.onclick = ()=> openMedPlanSheet(btn.dataset.edit);
+    btn.onclick = (e)=>{ e.stopPropagation(); openMedPlanSheet(btn.dataset.edit); };
+  });
+  el.querySelectorAll('[data-toggle]').forEach(btn=>{
+    btn.onclick = (e)=>{
+      e.stopPropagation();
+      const id = btn.dataset.toggle;
+      medListExpanded[id] = !medListExpanded[id];
+      renderMedPlans();
+    };
+  });
+  el.querySelectorAll('.dose-check-row').forEach(row=>{
+    const cb = row.querySelector('input[type=checkbox]');
+    cb.onchange = ()=>{
+      try{
+        const plan = state.logs.medPlans.find(p=>p.id===row.dataset.plan);
+        const group = getPlanGroup(plan);
+        const occurrences = generatePlanOccurrences(plan);
+        const occ = occurrences[Number(row.dataset.occIdx)];
+        markOccurrence(group, occ, cb.checked);
+        scheduleSave();
+        renderMedPlans();
+      }catch(err){ console.error(err); alert('Eroare la salvare.'); }
+    };
   });
 }
+
 
 function renderMedAgenda(){
   const el = document.getElementById('medAgendaList');
@@ -1081,8 +1167,28 @@ function renderMedAgenda(){
   });
 }
 
-function renderMeds(){ renderMedsBabyToggle(); renderMedPlans(); renderMedAgenda(); }
+function renderMeds(){ renderMedsBabyToggle(); renderMedsStatusFilter(); renderMedPlans(); renderMedAgenda(); }
 
+/* ---- generează toate momentele programate ale unui plan (trecute + viitoare) ---- */
+function generatePlanOccurrences(plan, windowDays=30){
+  const occurrences = [];
+  let t = new Date(plan.startAt);
+  const now = new Date();
+  const windowEnd = new Date(now.getTime() + windowDays*24*3600000);
+  let guard = 0, count = 0;
+  while(guard < 200){
+    if(plan.endType==='count' && plan.maxDoses && count >= plan.maxDoses) break;
+    if(plan.endType==='date' && plan.endDate && t > new Date(plan.endDate+'T23:59:59')) break;
+    if(plan.endType==='never' && t > windowEnd) break;
+    occurrences.push(new Date(t));
+    count++;
+    t = new Date(t.getTime() + plan.intervalHours*3600000);
+    guard++;
+  }
+  return occurrences;
+}
+
+/* ---- ecran de listă cu bifat, per plan (sau per grup "Ambele") ---- */
 function openMedPlanSheet(existingId){
   const plan = existingId ? state.logs.medPlans.find(p=>p.id===existingId) : null;
   const babyIds = plan ? [plan.babyId] : medsFilterIds();
@@ -1095,6 +1201,7 @@ function openMedPlanSheet(existingId){
     ${!plan?`<div class="form-group"><label class="form-label">Pentru</label>
       <div class="seg" id="mpBaby">
         ${state.babies.map(b=>`<button class="seg-btn ${babyIds.length===1&&babyIds[0]===b.id?'active':''}" data-v="${b.id}">${escapeHtml(b.name)}</button>`).join('')}
+        <button class="seg-btn" data-v="ambele">Ambele</button>
       </div></div>`:''}
     <div class="form-group"><label class="form-label">Medicament</label><input type="text" id="mpName" placeholder="ex: Nurofen" value="${plan?escapeHtml(plan.name):''}"></div>
     <div class="form-row">
@@ -1125,7 +1232,7 @@ function openMedPlanSheet(existingId){
       <button class="btn-cancel" id="mpCancel">Renunță</button>
       <button class="btn-primary" id="mpSave" style="background:${refBaby.color}">Salvează</button>
     </div>
-    ${plan?`<button class="btn-delete-entry" id="mpDelete">Șterge planul</button>`:''}
+    ${plan?`<button class="btn-delete-entry" id="mpDelete">Șterge planul${plan.groupId?' (ambele)':''}</button>`:''}
   `);
 
   let selectedBaby = babyIds[0];
@@ -1148,8 +1255,11 @@ function openMedPlanSheet(existingId){
   document.getElementById('mpCancel').onclick = closeSheet;
   if(plan){
     document.getElementById('mpDelete').onclick = ()=>{
-      const idx = state.logs.medPlans.findIndex(p=>p.id===existingId);
-      if(idx>-1) state.logs.medPlans.splice(idx,1);
+      const group = getPlanGroup(plan);
+      group.forEach(p=>{
+        const idx = state.logs.medPlans.findIndex(x=>x.id===p.id);
+        if(idx>-1) state.logs.medPlans.splice(idx,1);
+      });
       scheduleSave(); closeSheet(); renderMeds();
     };
   }
@@ -1168,7 +1278,13 @@ function openMedPlanSheet(existingId){
       if(selectedEndType==='count' && !maxDoses){ alert('Introdu numărul de doze.'); return; }
 
       if(plan){
-        Object.assign(plan, { name, doseText, intervalHours, startAt, notes, endType: selectedEndType, endDate, maxDoses });
+        const group = getPlanGroup(plan);
+        group.forEach(p=> Object.assign(p, { name, doseText, intervalHours, startAt, notes, endType: selectedEndType, endDate, maxDoses }));
+      } else if(selectedBaby === 'ambele'){
+        const groupId = uid();
+        state.babies.forEach(b=>{
+          state.logs.medPlans.push({ id: uid(), groupId, babyId: b.id, name, doseText, intervalHours, startAt, notes, paused:false, endType: selectedEndType, endDate, maxDoses });
+        });
       } else {
         state.logs.medPlans.push({ id: uid(), babyId: selectedBaby, name, doseText, intervalHours, startAt, notes, paused:false, endType: selectedEndType, endDate, maxDoses });
       }
@@ -1176,6 +1292,7 @@ function openMedPlanSheet(existingId){
     }catch(err){ console.error(err); alert('Eroare la salvare.'); }
   };
 }
+
 
 function openMedDoseSheet(){
   const babyIds = medsFilterIds();
@@ -1212,7 +1329,7 @@ function openMedDoseSheet(){
 
 /* ================= RENDER: STATS / OVERVIEW ================= */
 
-let statCharts = { sleep:null, feed:null, diaper:null };
+let statCharts = { sleep:null, feed:null, diaper:null, growth:null };
 
 function last7Days(){
   const days = [];
@@ -1274,6 +1391,51 @@ function renderStats(){
     }),
   }));
   buildBarChart('statDiaperChart', 'diaper', labels, diaperDatasets);
+
+  renderGrowthStatsChart();
+}
+
+function renderGrowthStatsChart(){
+  if(typeof Chart === 'undefined') return;
+  const ctx = document.getElementById('statGrowthChart');
+  if(!ctx) return;
+
+  const allDates = new Set();
+  state.logs.growth.forEach(g=> allDates.add(g.date));
+  const sortedDates = Array.from(allDates).sort((a,b)=> new Date(a)-new Date(b));
+
+  if(!sortedDates.length){
+    if(statCharts.growth){ statCharts.growth.destroy(); statCharts.growth = null; }
+    return;
+  }
+
+  const labels = sortedDates.map(d=> new Date(d).toLocaleDateString('ro-RO',{day:'2-digit',month:'short'}));
+  const datasets = state.babies.map(b=>{
+    const byDate = {};
+    state.logs.growth.filter(g=>g.babyId===b.id).forEach(g=>{ byDate[g.date] = g.weightKg; });
+    return {
+      label: b.name,
+      data: sortedDates.map(d=> (byDate[d] !== undefined ? byDate[d] : null)),
+      borderColor: b.color,
+      backgroundColor: b.color+'33',
+      spanGaps: true,
+      tension: .35,
+      pointRadius: 3,
+    };
+  });
+
+  try{
+    if(statCharts.growth) statCharts.growth.destroy();
+    statCharts.growth = new Chart(ctx, {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color:'#9a9db1' } } },
+        scales: { x:{ ticks:{ color:'#686b80' }, grid:{ color:'rgba(255,255,255,.05)' } }, y:{ ticks:{ color:'#686b80' }, grid:{ color:'rgba(255,255,255,.05)' } } }
+      }
+    });
+  }catch(err){ console.error('Graficul de creștere nu a putut fi desenat:', err); }
 }
 
 /* ================= RENDER: SETTINGS ================= */
@@ -1572,6 +1734,38 @@ document.getElementById('btnReset').onclick = ()=>{
 
 /* ================= PULL TO REFRESH ================= */
 
+/* ================= SWIPE STÂNGA/DREAPTA: comutare bebeluș ================= */
+
+(function setupSwipeBabySwitch(){
+  const target = document.getElementById('views');
+  let startX = null, startY = null;
+  const THRESHOLD = 60;
+
+  target.addEventListener('touchstart', (e)=>{
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+  }, {passive:true});
+
+  target.addEventListener('touchend', (e)=>{
+    if(startX===null) return;
+    const endX = e.changedTouches[0].clientX;
+    const endY = e.changedTouches[0].clientY;
+    const dx = endX - startX;
+    const dy = endY - startY;
+    startX = null; startY = null;
+
+    if(Math.abs(dx) > THRESHOLD && Math.abs(dx) > Math.abs(dy) * 1.5){
+      const order = [...state.babies.map(b=>b.id), 'all'];
+      const idx = order.indexOf(ui.currentBaby);
+      let nextIdx;
+      if(dx < 0) nextIdx = (idx + 1) % order.length;
+      else nextIdx = (idx - 1 + order.length) % order.length;
+      ui.currentBaby = order[nextIdx];
+      renderAll();
+    }
+  }, {passive:true});
+})();
+
 (function setupPullToRefresh(){
   const ptr = document.getElementById('ptrIndicator');
   let startY = null, lastDy = 0, refreshing = false;
@@ -1619,7 +1813,6 @@ function renderAll(){
   renderTwinSwitch();
   renderStatusRow();
   renderUpcomingBand();
-  renderVitalsStrip();
   renderSleepPrediction();
   renderQuickGrid();
   renderTodayStats();

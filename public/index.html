@@ -52,8 +52,6 @@
 
       <div class="upcoming-band" id="upcomingBand"></div>
 
-      <div class="vitals-strip" id="vitalsStrip"></div>
-
       <div id="sleepPredictionWrap"></div>
 
       <h2 class="section-title">Acțiune rapidă</h2>
@@ -80,6 +78,7 @@
     <!-- MEDICATION -->
     <section id="view-meds" class="view">
       <div class="growth-baby-toggle" id="medsBabyToggle"></div>
+      <div class="filter-chips" id="medsStatusFilter"></div>
 
       <div class="settings-row" style="margin-bottom:18px;">
         <button class="btn-secondary" id="btnMedAdhoc">Administrează acum</button>
@@ -109,6 +108,10 @@
       <div class="stat-chart-card">
         <div class="stat-chart-title">Scutece (nr./zi)</div>
         <canvas id="statDiaperChart" height="180"></canvas>
+      </div>
+      <div class="stat-chart-card">
+        <div class="stat-chart-title">Evoluție greutate (kg)</div>
+        <canvas id="statGrowthChart" height="180"></canvas>
       </div>
     </section>
 
