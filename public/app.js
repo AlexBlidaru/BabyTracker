@@ -772,19 +772,28 @@ function renderGrowth(){
   const b = baby(ui.growthBaby);
 
   const ctx = document.getElementById('growthChart');
-  if(chartInstance) chartInstance.destroy();
-  chartInstance = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: entries.map(e=> new Date(e.date).toLocaleDateString('ro-RO',{day:'2-digit',month:'short'})),
-      datasets: [{ label: 'Greutate (kg)', data: entries.map(e=> e.weightKg), borderColor: b.color, backgroundColor: b.color+'33', tension: .35, pointRadius: 3, fill: true }]
-    },
-    options: {
-      responsive:true,
-      plugins:{ legend:{ labels:{ color:'#9a9db1' } } },
-      scales:{ x:{ ticks:{ color:'#686b80' }, grid:{ color:'rgba(255,255,255,.05)' } }, y:{ ticks:{ color:'#686b80' }, grid:{ color:'rgba(255,255,255,.05)' } } }
+  try{
+    if(typeof Chart !== 'undefined' && ctx){
+      if(chartInstance) chartInstance.destroy();
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: entries.map(e=> new Date(e.date).toLocaleDateString('ro-RO',{day:'2-digit',month:'short'})),
+          datasets: [{ label: 'Greutate (kg)', data: entries.map(e=> e.weightKg), borderColor: b.color, backgroundColor: b.color+'33', tension: .35, pointRadius: 3, fill: true }]
+        },
+        options: {
+          responsive:true,
+          plugins:{ legend:{ labels:{ color:'#9a9db1' } } },
+          scales:{ x:{ ticks:{ color:'#686b80' }, grid:{ color:'rgba(255,255,255,.05)' } }, y:{ ticks:{ color:'#686b80' }, grid:{ color:'rgba(255,255,255,.05)' } } }
+        }
+      });
+    } else if(ctx){
+      ctx.style.display = 'none';
     }
-  });
+  }catch(err){
+    console.error('Graficul nu a putut fi desenat:', err);
+    if(ctx) ctx.style.display = 'none';
+  }
 
   const listEl = document.getElementById('growthList');
   if(!entries.length){ listEl.innerHTML = `<div class="tl-empty">Nicio măsurătoare pentru ${escapeHtml(b.name)} încă.</div>`; return; }
@@ -1213,17 +1222,23 @@ function last7Days(){
 function isSameDay(a,b){ return a.toDateString()===b.toDateString(); }
 
 function buildBarChart(canvasId, key, labels, datasets){
+  if(typeof Chart === 'undefined') return;
   const ctx = document.getElementById(canvasId);
-  if(statCharts[key]) statCharts[key].destroy();
-  statCharts[key] = new Chart(ctx, {
-    type: 'bar',
-    data: { labels, datasets },
-    options: {
-      responsive: true,
-      plugins: { legend: { labels: { color:'#9a9db1' } } },
-      scales: { x: { ticks:{ color:'#686b80' }, grid:{ display:false } }, y: { ticks:{ color:'#686b80' }, grid:{ color:'rgba(255,255,255,.05)' }, beginAtZero:true } }
-    }
-  });
+  if(!ctx) return;
+  try{
+    if(statCharts[key]) statCharts[key].destroy();
+    statCharts[key] = new Chart(ctx, {
+      type: 'bar',
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color:'#9a9db1' } } },
+        scales: { x: { ticks:{ color:'#686b80' }, grid:{ display:false } }, y: { ticks:{ color:'#686b80' }, grid:{ color:'rgba(255,255,255,.05)' }, beginAtZero:true } }
+      }
+    });
+  }catch(err){
+    console.error('Graficul nu a putut fi desenat:', err);
+  }
 }
 
 function renderStats(){
