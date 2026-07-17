@@ -43,6 +43,7 @@ const ICONS = {
   note: `<svg viewBox="0 0 24 24" fill="none"><path d="M5 4h11l3 3v13H5V4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 10h6M9 14h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>`,
   thermometer: `<svg viewBox="0 0 24 24" fill="none"><path d="M12 14.5V5a2 2 0 1 0-4 0v9.5a4 4 0 1 0 4 0Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>`,
   tummytime: `<svg viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="15" rx="7" ry="4" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="7" r="3" stroke="currentColor" stroke-width="1.8"/></svg>`,
+  pill: `<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="9" width="16" height="6" rx="3" stroke="currentColor" stroke-width="1.7"/><path d="M12 9v6" stroke="currentColor" stroke-width="1.7"/></svg>`,
 };
 
 /* ================= HELPERS ================= */
@@ -142,7 +143,7 @@ function normalizeState(s){
 let state = defaultState();
 let ui = {
   view: 'dashboard',
-  currentBaby: 'a',
+  currentBaby: 'all',
   growthBaby: 'a',
   timelineType: 'all',
   medsBaby: 'all',
@@ -243,7 +244,7 @@ function applyBackgroundTint(){
 
 let babySwitchDirection = null; // 'left' | 'right' | null — folosit pentru animația de tranziție
 
-function babyOrder(){ return [...state.babies.map(b=>b.id), 'all']; }
+function babyOrder(){ return ['all', ...state.babies.map(b=>b.id)]; }
 
 function setCurrentBaby(newId){
   if(newId === ui.currentBaby) return;
@@ -260,7 +261,7 @@ function renderTwinSwitch(){
   const hideOnThisTab = (ui.view === 'meds' || ui.view === 'growth');
   el.classList.toggle('hidden', hideOnThisTab);
   if(hideOnThisTab) return;
-  const opts = [...state.babies, {id:'all', name:'Ambele'}];
+  const opts = [{id:'all', name:'General'}, ...state.babies];
   el.innerHTML = opts.map(b=>{
     const active = ui.currentBaby === b.id ? 'active' : '';
     const dot = b.color ? `<span class="dot" style="background:${b.color}"></span>` : '';
@@ -721,6 +722,7 @@ function collectTimeline(){
   state.logs.feeding.forEach(e=> items.push({...e, _type:'feeding', _t: e.end||e.start}));
   state.logs.diaper.forEach(e=> items.push({...e, _type:'diaper', _t: e.time}));
   state.logs.activity.forEach(e=> items.push({...e, _type:'activity', _t: e.time}));
+  state.logs.medDoses.forEach(e=> items.push({...e, _type:'meds', _t: e.time}));
 
   items = items.filter(e=> babiesFilter.includes(e.babyId));
   if(ui.timelineType!=='all') items = items.filter(e=> e._type===ui.timelineType);
@@ -731,6 +733,7 @@ function collectTimeline(){
 function iconAndColorFor(item){
   if(item._type==='sleep') return {icon:ICONS.moon, bg:'rgba(143,180,156,.18)', color:'#8FB49C'};
   if(item._type==='diaper') return {icon:ICONS.diaper, bg:'rgba(227,178,60,.18)', color:'#E3B23C'};
+  if(item._type==='meds') return {icon:ICONS.pill, bg:'rgba(227,178,60,.18)', color:'#E3B23C'};
   if(item._type==='feeding'){
     if(item.subtype==='bottle') return {icon:ICONS.bottle, bg:'rgba(143,180,156,.18)', color:'#8FB49C'};
     if(item.subtype==='solid') return {icon:ICONS.solid, bg:'rgba(143,180,156,.18)', color:'#8FB49C'};
@@ -746,6 +749,7 @@ function iconAndColorFor(item){
 function labelFor(item){
   if(item._type==='sleep') return 'Somn';
   if(item._type==='diaper') return {pipi:'Scutec · pipi', caca:'Scutec · caca', ambele:'Scutec · ambele'}[item.type] || 'Scutec';
+  if(item._type==='meds') return item.name || 'Medicament';
   if(item._type==='activity') return {temperatura:'Temperatură', tummytime:'Tummy time'}[item.type] || 'Altele';
   if(item._type==='feeding'){
     return {breastL:'Alăptare · stânga', breastR:'Alăptare · dreapta', bottle:'Biberon', solid:'Masă solidă'}[item.subtype] || 'Masă';
@@ -756,6 +760,17 @@ function metaFor(item){
   if(item._type==='sleep'){
     if(!item.end) return 'în desfășurare…';
     return `${fmtTime(item.start)} – ${fmtTime(item.end)} · ${fmtDur(new Date(item.end)-new Date(item.start))}`;
+  }
+  if(item._type==='meds'){
+    const parts = [];
+    if(item.doseText) parts.push(item.doseText);
+    parts.push(fmtTime(item.time));
+    let base = parts.join(' · ');
+    if(item.scheduledTime){
+      const diffMs = Math.abs(new Date(item.time) - new Date(item.scheduledTime));
+      if(diffMs > 60000) base += ` (programat ${fmtTime(item.scheduledTime)}, administrat ${fmtTime(item.time)})`;
+    }
+    return base;
   }
   if(item._type==='feeding'){
     if(item.subtype==='bottle'){
@@ -783,7 +798,7 @@ function renderFilterChips(){
   const el = document.getElementById('filterChips');
   const types = [
     {k:'all', l:'Toate'}, {k:'sleep', l:'Somn'}, {k:'feeding', l:'Mese'},
-    {k:'diaper', l:'Scutece'}, {k:'activity', l:'Altele'},
+    {k:'diaper', l:'Scutece'}, {k:'meds', l:'Meds'}, {k:'activity', l:'Altele'},
   ];
   el.innerHTML = types.map(t=>`<button class="chip ${ui.timelineType===t.k?'active':''}" data-t="${t.k}">${t.l}</button>`).join('');
   el.querySelectorAll('.chip').forEach(c=> c.onclick = ()=>{ ui.timelineType = c.dataset.t; renderTimeline(); });
@@ -1051,6 +1066,14 @@ function markOccurrence(group, occ, given){
     });
   }
 }
+function nextUncheckedOccurrences(plan, group, limit=3){
+  const occurrences = generatePlanOccurrences(plan);
+  const rows = occurrences
+    .map((occ,idx)=> ({occ, idx, given: isOccurrenceGiven(group, occ)}))
+    .filter(r=>!r.given)
+    .slice(0, limit);
+  return { occurrences, rows };
+}
 
 function renderMedPlans(){
   const el = document.getElementById('medPlansList');
@@ -1101,16 +1124,15 @@ function renderMedPlans(){
     }
 
     // lista de doze: implicit doar următoarele 3 nebifate; expandabilă complet
-    const occurrences = generatePlanOccurrences(plan);
     const expanded = !!medListExpanded[plan.id];
-    let rows;
+    let occurrences, rows;
     if(expanded){
+      occurrences = generatePlanOccurrences(plan);
       rows = occurrences.map((occ,idx)=> ({occ, idx, given: isOccurrenceGiven(group, occ)}));
     } else {
-      rows = occurrences
-        .map((occ,idx)=> ({occ, idx, given: isOccurrenceGiven(group, occ)}))
-        .filter(r=>!r.given)
-        .slice(0,3);
+      const result = nextUncheckedOccurrences(plan, group, 3);
+      occurrences = result.occurrences;
+      rows = result.rows;
     }
 
     let dosesHtml;
@@ -1987,24 +2009,51 @@ document.getElementById('btnReset').onclick = ()=>{
 function renderTabletMedsPane(){
   const el = document.getElementById('tabletMedsList');
   if(!el) return;
-  const plans = state.logs.medPlans.filter(p=>!p.paused && !isPlanFinished(p));
-  if(!plans.length){ el.innerHTML = `<div class="tl-empty">Niciun plan activ.</div>`; return; }
+  const ids = ui.currentBaby === 'all' ? state.babies.map(b=>b.id) : [ui.currentBaby];
+  let plans = state.logs.medPlans.filter(p=> ids.includes(p.babyId) && !p.paused && !isPlanFinished(p));
+
   const seen = new Set();
-  const uniquePlans = plans.filter(p=>{
+  plans = plans.filter(p=>{
     if(!p.groupId) return true;
     if(seen.has(p.groupId)) return false;
     seen.add(p.groupId);
     return true;
   });
-  el.innerHTML = uniquePlans.map(plan=>{
+
+  if(!plans.length){ el.innerHTML = `<div class="tl-empty">Niciun plan activ.</div>`; return; }
+
+  el.innerHTML = plans.map(plan=>{
     const label = planGroupLabel(plan);
-    const next = nextDoseTimeForPlan(plan);
-    const overdue = next < new Date();
-    return `<div class="tablet-meds-row ${overdue?'overdue':''}">
+    const group = getPlanGroup(plan);
+    const { rows } = nextUncheckedOccurrences(plan, group, 3);
+
+    const dosesHtml = rows.length
+      ? rows.map(r=>`<label class="dose-check-row" data-plan="${plan.id}" data-occ-idx="${r.idx}">
+          <input type="checkbox">
+          <span>${r.occ.toLocaleDateString('ro-RO')} – ${fmtTime(r.occ.toISOString())}</span>
+        </label>`).join('')
+      : `<div class="tl-empty" style="padding:8px 4px;font-size:13px;">Toate dozele administrate.</div>`;
+
+    return `<div class="tablet-meds-row">
       <div class="tmr-name">${escapeHtml(plan.name)} <span class="tl-baby-name">${escapeHtml(label)}</span></div>
-      <div class="tmr-next">${overdue?'Întârziat · era la ':'Următoarea: '}${fmtTime(next)} · ${dayLabel(next.toISOString())}</div>
+      <div class="tmr-dose-list">${dosesHtml}</div>
     </div>`;
   }).join('');
+
+  el.querySelectorAll('.dose-check-row').forEach(row=>{
+    const cb = row.querySelector('input[type=checkbox]');
+    cb.onchange = ()=>{
+      try{
+        const plan = state.logs.medPlans.find(p=>p.id===row.dataset.plan);
+        const group = getPlanGroup(plan);
+        const occurrences = generatePlanOccurrences(plan);
+        const occ = occurrences[Number(row.dataset.occIdx)];
+        markOccurrence(group, occ, cb.checked);
+        scheduleSave();
+        setTimeout(()=> renderTabletMedsPane(), 1500);
+      }catch(err){ console.error(err); alert('Eroare la salvare.'); }
+    };
+  });
 }
 
 function renderAll(){

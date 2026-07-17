@@ -39,7 +39,7 @@ body{
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;
 }
-button{ font-family: inherit; }
+button{ font-family: inherit; color: inherit; }
 h1,h2,h3{ font-family: var(--font-display); margin:0; }
 
 #app{
@@ -169,12 +169,12 @@ main{ flex:1; padding: 14px 18px 130px; }
 .upcoming-band::-webkit-scrollbar{ display:none; }
 .upcoming-chip{
   flex-shrink:0; min-width:132px; background: var(--amber-soft); border:1px solid rgba(227,178,60,.4);
-  border-radius: var(--radius-md); padding: 9px 12px; text-align:left;
+  border-radius: var(--radius-md); padding: 9px 12px; text-align:left; color: var(--text);
 }
 .upcoming-chip.overdue{ background: var(--danger-soft); border-color: var(--danger); }
-.upcoming-chip .uc-title{ font-weight:700; font-size:14px; display:flex; align-items:center; gap:5px; white-space:nowrap; }
-.upcoming-chip .uc-time{ font-family: var(--font-display); font-size:17px; margin-top:3px; }
-.upcoming-chip .uc-sub{ font-size:12px; color: var(--text-faint); margin-top:1px; white-space:nowrap; }
+.upcoming-chip .uc-title{ font-weight:700; font-size:14px; display:flex; align-items:center; gap:5px; white-space:nowrap; color: var(--text); }
+.upcoming-chip .uc-time{ font-family: var(--font-display); font-size:17px; margin-top:3px; color: var(--text); }
+.upcoming-chip .uc-sub{ font-size:12px; color: var(--text-dim); margin-top:1px; white-space:nowrap; }
 
 /* ============ QUICK ACTIONS ============ */
 .quick-grid{ display:grid; grid-template-columns: repeat(3,1fr); gap:10px; }
@@ -217,7 +217,7 @@ main{ flex:1; padding: 14px 18px 130px; }
 .tl-body{ flex:1; min-width:0; }
 .tl-title{ font-weight:700; font-size:16px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
 .tl-title .baby-dot{ width:7px; height:7px; border-radius:50%; display:inline-block; flex-shrink:0; }
-.tl-baby-name{ font-weight:600; font-size:13px; color: var(--text-dim); background: var(--surface-2); padding:2px 7px; border-radius:100px; }
+.tl-baby-name{ font-weight:600; font-size:18px; color: var(--text-dim); background: var(--surface-2); padding:2px 7px; border-radius:100px; }
 .tl-meta{ color: var(--text-dim); font-size:14.5px; margin-top:3px; }
 .tl-notes{ color: var(--text-dim); font-size:14.5px; margin-top:4px; font-style:italic; }
 .tl-empty{ text-align:center; color: var(--text-faint); padding: 40px 20px; font-size:16px; }
@@ -419,16 +419,19 @@ textarea{ resize:vertical; min-height: 54px; }
   font-size:15px; padding:4px;
 }
 
-/* ============ PANOU MEDS PE SCURT (doar tabletă) ============ */
+/* ============ PANOU "PLAN MEDICAMENTAȚIE" (doar tabletă) ============ */
 .tablet-meds-pane{ display:none; }
 .tablet-meds-row{
-  background: var(--surface); border:1px solid var(--border); border-radius: var(--radius-md);
-  padding: 12px 14px; margin-bottom:9px;
+  background: var(--surface); border:2px solid var(--border); border-radius: var(--radius-lg);
+  padding: 16px 18px; margin-bottom:12px;
 }
 .tablet-meds-row.overdue{ border-color: var(--danger); }
-.tablet-meds-row .tmr-name{ font-weight:700; font-size:14.5px; display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
-.tablet-meds-row .tmr-next{ color: var(--text-dim); font-size:13px; margin-top:3px; }
+.tablet-meds-row .tmr-name{ font-weight:700; font-size:22px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+.tablet-meds-row .tmr-next{ color: var(--text-dim); font-size:15px; margin-top:3px; }
 .tablet-meds-row.overdue .tmr-next{ color: var(--danger); }
+.tablet-meds-row .tmr-dose-list{ display:flex; flex-direction:column; gap:2px; }
+.tablet-meds-row .dose-check-row{ font-size:15.5px; padding:9px 4px; }
+.tablet-meds-row .dose-check-row input[type=checkbox]{ width:22px; height:22px; }
 
 /* ============ LAYOUT TABLETĂ ============ */
 @media (min-width: 900px){
