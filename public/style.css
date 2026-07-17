@@ -78,6 +78,14 @@ h1,h2,h3{ font-family: var(--font-display); margin:0; }
   padding: calc(14px + var(--safe-top)) 18px 6px;
 }
 .topbar-row{ display:flex; align-items:center; justify-content:space-between; }
+.topbar-left{ display:flex; align-items:center; gap:12px; }
+.menu-toggle{
+  width:38px; height:38px; border-radius:12px; flex-shrink:0;
+  background: rgba(255,255,255,.06); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border:1px solid var(--border); color: var(--text); display:flex; align-items:center; justify-content:center;
+}
+.menu-toggle svg{ width:19px; height:19px; }
+.menu-toggle:active{ background: rgba(255,255,255,.12); }
 .brand{ display:flex; align-items:center; gap:8px; }
 .brand-name{ font-family: var(--font-display); font-weight:600; font-size: 22px; letter-spacing: .2px; }
 .sync-dot{
@@ -96,6 +104,7 @@ h1,h2,h3{ font-family: var(--font-display); margin:0; }
   background: var(--surface); border-radius: 100px; padding: 4px;
   border: 1px solid var(--border);
 }
+.twin-switch.hidden{ display:none; }
 .twin-tab{
   flex:1; border:2px solid transparent; background:transparent; color: var(--text-dim);
   padding: 11px 10px; border-radius: 100px; font-weight:700; font-size: 16px;
@@ -257,7 +266,7 @@ main{ flex:1; padding: 14px 18px 130px; }
   width:100%; display:flex; align-items:center; justify-content:space-between;
   background:none; border:none; color:var(--text-dim); font-weight:700; font-size:14.5px; padding:4px 2px;
 }
-.dose-arrow{ transition: transform .2s ease; font-size:14px; }
+.dose-arrow{ transition: transform .2s ease; font-size:20px; line-height:1; }
 .dose-arrow.open{ transform: rotate(180deg); }
 .dose-check-list-inline{ display:flex; flex-direction:column; gap:2px; max-height:230px; overflow-y:auto; margin-top:4px; }
 .dose-check-row{ display:flex; align-items:center; gap:10px; padding:7px 4px; border-bottom:1px solid var(--border); font-size:15px; cursor:pointer; }
@@ -315,8 +324,8 @@ main{ flex:1; padding: 14px 18px 130px; }
   border-top: 1px solid var(--border);
   display:flex; padding: 8px 6px calc(8px + var(--safe-bottom));
 }
-.nav-btn{ flex:1; background:none; border:none; color: var(--text-faint); display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px 0; font-size:11px; font-weight:700; }
-.nav-btn svg{ width:19px; height:19px; }
+.nav-btn{ flex:1; background:none; border:none; color: var(--text-faint); display:flex; flex-direction:column; align-items:center; gap:4px; padding:7px 0; font-size:13px; font-weight:700; }
+.nav-btn svg{ width:24px; height:24px; }
 .nav-btn.active{ color: var(--text); }
 .nav-btn span{ white-space:nowrap; }
 
@@ -370,3 +379,62 @@ textarea{ resize:vertical; min-height: 54px; }
 .btn-primary{ flex:1; padding: 14px; border-radius: var(--radius-md); border:none; font-weight:800; font-size:16.5px; color: #14141c; }
 .btn-cancel{ padding: 14px 18px; border-radius: var(--radius-md); border:1px solid var(--border); background:none; color: var(--text-dim); font-weight:700; }
 .btn-delete-entry{ color: var(--danger); background:none; border:none; font-weight:700; font-size:15px; margin-top:8px; }
+
+/* ============ DRAWER LATERAL (glass) ============ */
+.drawer-overlay{
+  position: fixed; inset:0; z-index: 60; background: rgba(0,0,0,.45);
+  display:none; opacity:0; transition: opacity .25s ease;
+}
+.drawer-overlay.open{ display:block; opacity:1; }
+.drawer{
+  position: absolute; top:0; left:0; bottom:0; width: 82%; max-width: 320px;
+  background: rgba(27,28,39,.86); backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px);
+  border-right: 1px solid var(--border);
+  padding: calc(18px + var(--safe-top)) 18px 18px;
+  transform: translateX(-100%); transition: transform .3s cubic-bezier(.22,.8,.32,1);
+  overflow-y:auto;
+}
+.drawer-overlay.open .drawer{ transform: translateX(0); }
+.drawer-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+.drawer-title{ font-family: var(--font-display); font-size:20px; font-weight:600; }
+.drawer-close{ width:32px; height:32px; border-radius:10px; background: var(--surface); border:1px solid var(--border); color: var(--text-dim); font-size:15px; }
+.drawer-nav{ display:flex; flex-direction:column; gap:6px; margin-bottom:24px; }
+.drawer-link{
+  display:flex; align-items:center; gap:12px; text-align:left;
+  background: var(--surface); border:1px solid var(--border); border-radius: var(--radius-md);
+  padding: 13px 14px; color: var(--text); font-weight:700; font-size:15px;
+}
+.drawer-link svg{ width:20px; height:20px; flex-shrink:0; color: var(--text-dim); }
+.drawer-section-title{ font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-faint); font-weight:700; margin-bottom:8px; }
+.drawer-hint{ color: var(--text-dim); font-size:13.5px; line-height:1.5; margin: 0 0 10px; }
+.drawer-feedback-save{ width:100%; margin-top:8px; }
+.feedback-list{ display:flex; flex-direction:column; gap:8px; margin-top:14px; }
+.feedback-item{
+  background: var(--surface); border:1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 10px 12px; font-size:13px; position:relative; padding-right:34px;
+}
+.feedback-item .fi-date{ color: var(--text-faint); font-size:11px; margin-bottom:3px; }
+.feedback-item .fi-delete{
+  position:absolute; top:8px; right:8px; background:none; border:none; color: var(--text-faint);
+  font-size:15px; padding:4px;
+}
+
+/* ============ PANOU MEDS PE SCURT (doar tabletă) ============ */
+.tablet-meds-pane{ display:none; }
+.tablet-meds-row{
+  background: var(--surface); border:1px solid var(--border); border-radius: var(--radius-md);
+  padding: 12px 14px; margin-bottom:9px;
+}
+.tablet-meds-row.overdue{ border-color: var(--danger); }
+.tablet-meds-row .tmr-name{ font-weight:700; font-size:14.5px; display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+.tablet-meds-row .tmr-next{ color: var(--text-dim); font-size:13px; margin-top:3px; }
+.tablet-meds-row.overdue .tmr-next{ color: var(--danger); }
+
+/* ============ LAYOUT TABLETĂ ============ */
+@media (min-width: 900px){
+  #app{ max-width: 1100px; }
+  #app.dashboard-active main{
+    display:grid; grid-template-columns: 1fr 380px; gap:22px; align-items:start;
+  }
+  #app.dashboard-active .tablet-meds-pane{ display:block; }
+}

@@ -118,6 +118,7 @@ function defaultState(){
     ],
     logs: { feeding: [], sleep: [], diaper: [], growth: [], activity: [], medPlans: [], medDoses: [] },
     timers: { feeding: {}, sleep: {} },
+    appFeedback: [],
     updatedAt: 0,
   };
 }
@@ -130,6 +131,7 @@ function normalizeState(s){
   s.timers = s.timers || {};
   s.timers.feeding = s.timers.feeding || {};
   s.timers.sleep = s.timers.sleep || {};
+  if(!Array.isArray(s.appFeedback)) s.appFeedback = [];
   s.babies = (s.babies && s.babies.length) ? s.babies : defaultState().babies;
   s.babies.forEach(b=>{ if(b.birthDate===undefined) b.birthDate = null; });
   s.logs.medPlans.forEach(p=>{ if(!p.endType) p.endType = 'never'; });
@@ -145,6 +147,7 @@ let ui = {
   timelineType: 'all',
   medsBaby: 'all',
   medsFilter: 'active',
+  agendaExpanded: false,
 };
 let pendingSave = false;
 let saveTimeout = null;
@@ -221,11 +224,16 @@ function babyNames(ids){ return ids.map(id=> baby(id).name).join(' & '); }
 function applyBackgroundTint(){
   const appEl = document.getElementById('app');
   if(!appEl) return;
-  if(ui.currentBaby === 'all'){
+  let activeSel;
+  if(ui.view === 'meds') activeSel = ui.medsBaby;
+  else if(ui.view === 'growth') activeSel = ui.growthBaby;
+  else activeSel = ui.currentBaby;
+
+  if(activeSel === 'all'){
     appEl.classList.remove('bg-tinted');
     appEl.style.removeProperty('--tint');
   } else {
-    const b = baby(ui.currentBaby);
+    const b = baby(activeSel);
     appEl.style.setProperty('--tint', b.color);
     appEl.classList.add('bg-tinted');
   }
@@ -249,6 +257,9 @@ function setCurrentBaby(newId){
 
 function renderTwinSwitch(){
   const el = document.getElementById('twinSwitch');
+  const hideOnThisTab = (ui.view === 'meds' || ui.view === 'growth');
+  el.classList.toggle('hidden', hideOnThisTab);
+  if(hideOnThisTab) return;
   const opts = [...state.babies, {id:'all', name:'Ambele'}];
   el.innerHTML = opts.map(b=>{
     const active = ui.currentBaby === b.id ? 'active' : '';
@@ -367,21 +378,15 @@ function renderUpcomingBand(){
 
 function renderQuickGrid(){
   const el = document.getElementById('quickGrid');
-  const tId = activeBabyIds()[0];
-  const sleeping = activeSleepFor(tId);
-  const feedL = activeFeedFor(tId) && activeFeedFor(tId).subtype==='breastL';
-  const feedR = activeFeedFor(tId) && activeFeedFor(tId).subtype==='breastR';
-
   const items = [
-    { key:'sleep', label: sleeping? 'Oprește somn':'Somn', icon:ICONS.moon, running: !!sleeping },
-    { key:'breastL', label:'Alăptare S', icon:ICONS.breastL, running: feedL },
-    { key:'breastR', label:'Alăptare D', icon:ICONS.breastR, running: feedR },
+    { key:'sleep', label:'Somn', icon:ICONS.moon },
+    { key:'breastfeed', label:'Alăptare', icon:ICONS.breastL },
     { key:'bottle', label:'Biberon', icon:ICONS.bottle },
     { key:'solid', label:'Masă solidă', icon:ICONS.solid },
     { key:'altele', label:'Altele', icon:ICONS.note },
   ];
   el.innerHTML = items.map(it=>`
-    <button class="quick-btn ${it.running?'running':''}" data-action="${it.key}">
+    <button class="quick-btn" data-action="${it.key}">
       ${it.icon}<span>${it.label}</span>
     </button>`).join('');
   el.querySelectorAll('.quick-btn').forEach(btn=>{
@@ -391,30 +396,74 @@ function renderQuickGrid(){
 
 function handleQuickAction(action){
   const babyIds = activeBabyIds();
-  const refId = babyIds[0];
-  if(action==='sleep'){
-    const active = activeSleepFor(refId);
-    if(active){
-      openConfirmTimerSheet('sleep', babyIds, active.start);
-    } else {
-      babyIds.forEach(id=>{ state.timers.sleep[id] = { start: nowISO() }; });
-      scheduleSave(); renderAll();
-    }
-    return;
-  }
-  if(action==='breastL' || action==='breastR'){
-    const active = activeFeedFor(refId);
-    if(active && active.subtype===action){
-      openConfirmTimerSheet('feeding', babyIds, active.start, action);
-    } else {
-      babyIds.forEach(id=>{ state.timers.feeding[id] = { subtype: action, start: nowISO() }; });
-      scheduleSave(); renderAll();
-    }
-    return;
-  }
+  if(action==='sleep') return openManualLogSheet('sleep', babyIds);
+  if(action==='breastfeed') return openManualLogSheet('breastfeed', babyIds);
   if(action==='bottle') return openFeedingSheet({ babyIds, subtype:'bottle' });
   if(action==='solid') return openFeedingSheet({ babyIds, subtype:'solid' });
   if(action==='altele') return openOtherTypeSheet(babyIds);
+}
+
+/* ---- Somn & Alăptare: introducere manuală (fără cronometru live) ---- */
+/* Motiv: în practică nu ai timp să apeși "start" exact când adorm copiii — */
+/* e mult mai realist să notezi ulterior, cu ora de început/sfârșit aleasă manual. */
+
+function openManualLogSheet(kind, babyIds){
+  const refBaby = baby(babyIds[0]);
+  const names = babyNames(babyIds);
+  const bothNote = babyIds.length>1 ? `<div class="sheet-sub">Se aplică la amândoi</div>` : '';
+  const title = kind==='sleep' ? 'Somn' : 'Alăptare';
+
+  const sideHtml = kind==='breastfeed' ? `
+    <div class="form-group"><label class="form-label">Sân</label>
+      <div class="seg" id="mlSide">
+        <button class="seg-btn active" data-v="breastL">Stânga</button>
+        <button class="seg-btn" data-v="breastR">Dreapta</button>
+      </div>
+    </div>` : '';
+
+  renderSheet(`
+    <div class="sheet-handle"></div>
+    <h3>${title} — ${names}</h3>
+    ${bothNote}
+    ${sideHtml}
+    <div class="form-group"><label class="form-label">Data</label><input type="date" id="mlDate" value="${new Date().toISOString().slice(0,10)}"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Început</label><input type="time" id="mlStart" value="${toTimeInput(nowISO())}"></div>
+      <div class="form-group"><label class="form-label">Sfârșit</label><input type="time" id="mlEnd" value="${toTimeInput(nowISO())}"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Notă (opțional)</label><textarea id="mlNotes"></textarea></div>
+    <div class="sheet-actions">
+      <button class="btn-cancel" id="mlCancel">Renunță</button>
+      <button class="btn-primary" id="mlSave" style="background:${refBaby.color}">Salvează</button>
+    </div>
+  `);
+
+  if(kind==='breastfeed'){
+    document.querySelectorAll('#mlSide .seg-btn').forEach(btn=>{
+      btn.onclick = ()=>{ document.querySelectorAll('#mlSide .seg-btn').forEach(x=>x.classList.remove('active')); btn.classList.add('active'); };
+    });
+  }
+
+  document.getElementById('mlCancel').onclick = closeSheet;
+  document.getElementById('mlSave').onclick = ()=>{
+    try{
+      const dateStr = document.getElementById('mlDate').value;
+      const startISO = combineDateAndTime(dateStr, document.getElementById('mlStart').value);
+      let endISO = combineDateAndTime(dateStr, document.getElementById('mlEnd').value);
+      if(new Date(endISO) < new Date(startISO)){ const d = new Date(endISO); d.setDate(d.getDate()+1); endISO = d.toISOString(); }
+      const notes = document.getElementById('mlNotes').value.trim();
+      const subtype = kind==='breastfeed' ? document.querySelector('#mlSide .seg-btn.active').dataset.v : null;
+
+      babyIds.forEach(babyId=>{
+        if(kind==='sleep'){
+          state.logs.sleep.push({ id: uid(), babyId, start: startISO, end: endISO, notes });
+        } else {
+          state.logs.feeding.push({ id: uid(), babyId, subtype, start: startISO, end: endISO, notes });
+        }
+      });
+      scheduleSave(); closeSheet(); renderAll();
+    }catch(err){ console.error(err); alert('Eroare la salvare.'); }
+  };
 }
 
 function openConfirmTimerSheet(kind, babyIds, start, subtype){
@@ -429,7 +478,7 @@ function openConfirmTimerSheet(kind, babyIds, start, subtype){
       <div class="form-group"><label class="form-label">Început</label><input type="time" id="fStart" value="${toTimeInput(start)}"></div>
       <div class="form-group"><label class="form-label">Sfârșit</label><input type="time" id="fEnd" value="${toTimeInput(nowISO())}"></div>
     </div>
-    <div class="form-group"><label class="form-label">Notă (opțional)</label><textarea id="fNotes" placeholder="ex: a adormit greu"></textarea></div>
+    <div class="form-group"><label class="form-label">Notă (opțional)</label><textarea id="fNotes"></textarea></div>
     <div class="sheet-actions">
       <button class="btn-cancel" id="fCancel">Renunță</button>
       <button class="btn-primary" id="fSave" style="background:${refBaby.color}">Salvează</button>
@@ -780,6 +829,7 @@ function renderGrowthBabyToggle(){
 }
 
 function renderGrowth(){
+  applyBackgroundTint();
   renderGrowthBabyToggle();
   const entries = state.logs.growth.filter(g=>g.babyId===ui.growthBaby).sort((a,b)=> new Date(a.date)-new Date(b.date));
   const b = baby(ui.growthBaby);
@@ -979,7 +1029,7 @@ function renderMedsStatusFilter(){
     {k:'all', l:'Toate'},
   ];
   el.innerHTML = opts.map(o=>`<button class="chip ${ui.medsFilter===o.k?'active':''}" data-f="${o.k}">${o.l}</button>`).join('');
-  el.querySelectorAll('.chip').forEach(c=> c.onclick = ()=>{ ui.medsFilter = c.dataset.f; renderMedPlans(); });
+  el.querySelectorAll('.chip').forEach(c=> c.onclick = ()=>{ ui.medsFilter = c.dataset.f; renderMedsStatusFilter(); renderMedPlans(); });
 }
 
 let medListExpanded = {}; // stare doar de UI (nu se salvează): true = arată toate dozele, altfel doar următoarele 3 nebifate
@@ -1129,7 +1179,8 @@ function renderMedPlans(){
         const occ = occurrences[Number(row.dataset.occIdx)];
         markOccurrence(group, occ, cb.checked);
         scheduleSave();
-        renderMedPlans();
+        row.classList.add('dose-check-row-settled');
+        setTimeout(()=> renderMedPlans(), 1500);
       }catch(err){ console.error(err); alert('Eroare la salvare.'); }
     };
   });
@@ -1208,7 +1259,20 @@ function renderMedAgenda(){
   });
 }
 
-function renderMeds(){ renderMedsBabyToggle(); renderMedsStatusFilter(); renderMedPlans(); renderMedAgenda(); }
+function renderAgendaSection(){
+  const toggleBtn = document.getElementById('agendaToggle');
+  const arrow = document.getElementById('agendaArrow');
+  const hint = document.getElementById('agendaHint');
+  const list = document.getElementById('medAgendaList');
+  if(!toggleBtn) return;
+  arrow.classList.toggle('open', ui.agendaExpanded);
+  hint.style.display = ui.agendaExpanded ? 'block' : 'none';
+  list.style.display = ui.agendaExpanded ? 'flex' : 'none';
+  if(ui.agendaExpanded) renderMedAgenda();
+  toggleBtn.onclick = ()=>{ ui.agendaExpanded = !ui.agendaExpanded; renderAgendaSection(); };
+}
+
+function renderMeds(){ applyBackgroundTint(); renderMedsBabyToggle(); renderMedsStatusFilter(); renderMedPlans(); renderAgendaSection(); }
 
 /* ---- generează toate momentele programate ale unui plan (trecute + viitoare) ---- */
 function generatePlanOccurrences(plan, windowDays=30){
@@ -1744,6 +1808,9 @@ function switchView(v){
   ui.view = v;
   document.querySelectorAll('.view').forEach(el=> el.classList.toggle('active', el.id==='view-'+v));
   document.querySelectorAll('.nav-btn').forEach(el=> el.classList.toggle('active', el.dataset.view===v));
+  document.getElementById('app').classList.toggle('dashboard-active', v==='dashboard');
+  renderTwinSwitch();
+  applyBackgroundTint();
   if(v==='timeline') renderTimeline();
   if(v==='growth') renderGrowth();
   if(v==='meds') renderMeds();
@@ -1754,6 +1821,55 @@ document.querySelectorAll('.nav-btn').forEach(btn=> btn.onclick = ()=> switchVie
 document.getElementById('btnAddGrowth').onclick = ()=> openGrowthSheet();
 document.getElementById('btnMedAdhoc').onclick = openMedDoseSheet;
 document.getElementById('btnMedPlan').onclick = ()=> openMedPlanSheet();
+
+/* ================= MENIU LATERAL (drawer) ================= */
+
+function openDrawer(){
+  document.getElementById('drawerOverlay').classList.add('open');
+  renderFeedbackList();
+}
+function closeDrawer(){
+  document.getElementById('drawerOverlay').classList.remove('open');
+}
+document.getElementById('menuToggle').onclick = openDrawer;
+document.getElementById('drawerClose').onclick = closeDrawer;
+document.getElementById('drawerOverlay').addEventListener('click', (e)=>{
+  if(e.target.id==='drawerOverlay') closeDrawer();
+});
+document.querySelectorAll('.drawer-link').forEach(btn=>{
+  btn.onclick = ()=>{ switchView(btn.dataset.view); closeDrawer(); };
+});
+
+function renderFeedbackList(){
+  const el = document.getElementById('feedbackList');
+  if(!el) return;
+  const notes = (state.appFeedback||[]).slice().sort((a,b)=> new Date(b.date)-new Date(a.date));
+  if(!notes.length){ el.innerHTML = ''; return; }
+  el.innerHTML = notes.map(n=>`
+    <div class="feedback-item" data-id="${n.id}">
+      <div class="fi-date">${new Date(n.date).toLocaleDateString('ro-RO',{day:'2-digit',month:'short'})} · ${fmtTime(n.date)}</div>
+      <div>${escapeHtml(n.text)}</div>
+      <button class="fi-delete" data-del="${n.id}">✕</button>
+    </div>`).join('');
+  el.querySelectorAll('[data-del]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const idx = state.appFeedback.findIndex(n=>n.id===btn.dataset.del);
+      if(idx>-1) state.appFeedback.splice(idx,1);
+      scheduleSave(); renderFeedbackList();
+    };
+  });
+}
+
+document.getElementById('feedbackSave').onclick = ()=>{
+  const input = document.getElementById('feedbackInput');
+  const text = input.value.trim();
+  if(!text) return;
+  state.appFeedback = state.appFeedback || [];
+  state.appFeedback.push({ id: uid(), text, date: nowISO() });
+  input.value = '';
+  scheduleSave();
+  renderFeedbackList();
+};
 
 /* ================= SETTINGS: EXPORT / IMPORT / RESET ================= */
 
@@ -1866,14 +1982,41 @@ document.getElementById('btnReset').onclick = ()=>{
 
 /* ================= MASTER RENDER ================= */
 
+/* ================= PANOU MEDS PE SCURT (tabletă) ================= */
+
+function renderTabletMedsPane(){
+  const el = document.getElementById('tabletMedsList');
+  if(!el) return;
+  const plans = state.logs.medPlans.filter(p=>!p.paused && !isPlanFinished(p));
+  if(!plans.length){ el.innerHTML = `<div class="tl-empty">Niciun plan activ.</div>`; return; }
+  const seen = new Set();
+  const uniquePlans = plans.filter(p=>{
+    if(!p.groupId) return true;
+    if(seen.has(p.groupId)) return false;
+    seen.add(p.groupId);
+    return true;
+  });
+  el.innerHTML = uniquePlans.map(plan=>{
+    const label = planGroupLabel(plan);
+    const next = nextDoseTimeForPlan(plan);
+    const overdue = next < new Date();
+    return `<div class="tablet-meds-row ${overdue?'overdue':''}">
+      <div class="tmr-name">${escapeHtml(plan.name)} <span class="tl-baby-name">${escapeHtml(label)}</span></div>
+      <div class="tmr-next">${overdue?'Întârziat · era la ':'Următoarea: '}${fmtTime(next)} · ${dayLabel(next.toISOString())}</div>
+    </div>`;
+  }).join('');
+}
+
 function renderAll(){
   applyBackgroundTint();
+  document.getElementById('app').classList.toggle('dashboard-active', ui.view==='dashboard');
   renderTwinSwitch();
   renderStatusRow();
   renderUpcomingBand();
   renderSleepPrediction();
   renderQuickGrid();
   renderTodayStats();
+  renderTabletMedsPane();
   renderTimerBar();
   if(ui.view==='timeline') renderTimeline();
   if(ui.view==='growth') renderGrowth();
@@ -1891,4 +2034,12 @@ function render(){ renderAll(); }
   renderAll();
   pullFromServer({ applyIfNewer:false }).then(()=> renderAll());
   setInterval(()=> pullFromServer({ applyIfNewer:true }), 20000);
+
+  // reîncărcare completă a paginii la 15 minute — utilă pt. sesiuni lungi (ex: tabletă
+  // lăsată deschisă permanent): preia orice actualizare de cod și evită blocarea
+  // timer-elor de browser când tab-ul stă mult timp în fundal.
+  setInterval(()=>{
+    const sheetOpen = document.getElementById('sheetOverlay').classList.contains('open');
+    if(!sheetOpen) window.location.reload();
+  }, 15*60*1000);
 })();
