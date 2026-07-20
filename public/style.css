@@ -175,7 +175,7 @@ main{ flex:1; padding: 14px 18px 130px; }
 .upcoming-chip .uc-title{ font-weight:700; font-size:14px; display:flex; align-items:center; gap:5px; white-space:nowrap; color: var(--text); }
 .upcoming-chip .uc-time{ font-family: var(--font-display); font-size:17px; margin-top:3px; color: var(--text); }
 .upcoming-chip .uc-sub{ font-size:12px; color: var(--text-dim); margin-top:1px; white-space:nowrap; }
-.upcoming-chip:not(.predict-chip) .uc-title{ font-size: 19px; }
+.upcoming-chip:not(.predict-chip) .uc-sub{ font-size: 19px; }
 .uc-icon{ font-size:16px; display:inline-block; vertical-align:-2px; }
 .predict-band{ margin-top:0; }
 
