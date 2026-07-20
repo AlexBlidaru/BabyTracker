@@ -84,6 +84,17 @@ function dayLabel(iso){
   if(isSameDay(d,yesterday)) return 'Ieri';
   return d.toLocaleDateString('ro-RO',{day:'2-digit',month:'long'});
 }
+/* la fel ca dayLabel, dar include și "Mâine" — folosită pt. dozele viitoare (Ieri/Azi/Mâine/dată completă) */
+function dayLabelRelative(iso){
+  const d = new Date(iso), today = new Date();
+  const isSameDay = (a,b)=> a.toDateString()===b.toDateString();
+  const yesterday = new Date(today); yesterday.setDate(today.getDate()-1);
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate()+1);
+  if(isSameDay(d,today)) return 'Azi';
+  if(isSameDay(d,yesterday)) return 'Ieri';
+  if(isSameDay(d,tomorrow)) return 'Mâine';
+  return d.toLocaleDateString('ro-RO');
+}
 function toTimeInput(iso){ const d = new Date(iso); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
 function toDateInput(iso){ return new Date(iso).toISOString().slice(0,10); }
 function combineTimeWithDate(refISO, hhmm, isEnd, startISOForEnd){
@@ -358,16 +369,18 @@ function getUpcomingTasks(limit=3){
 
 function renderUpcomingBand(){
   const el = document.getElementById('upcomingBand');
+  const titleEl = document.getElementById('upcomingBandTitle');
   if(!el) return;
   const tasks = getUpcomingTasks(3);
-  if(!tasks.length){ el.innerHTML = ''; el.style.display = 'none'; return; }
+  if(!tasks.length){ el.innerHTML = ''; el.style.display = 'none'; if(titleEl) titleEl.style.display = 'none'; return; }
   el.style.display = 'flex';
+  if(titleEl) titleEl.style.display = 'block';
   const now = new Date();
   el.innerHTML = tasks.map(t=>{
     const overdue = t.time < now;
     const babiesLbl = t.babyIds.length>1 ? 'Ambele' : baby(t.babyIds[0]).name;
     return `<button type="button" class="upcoming-chip ${overdue?'overdue':''}">
-      <div class="uc-title">${t.icon} ${escapeHtml(t.name)}</div>
+      <div class="uc-title"><span class="uc-icon">${t.icon}</span> ${escapeHtml(t.name)}</div>
       <div class="uc-time">${overdue?'acum':relativeUntil(t.time)}</div>
       <div class="uc-sub">${escapeHtml(babiesLbl)}${t.doseText?' · '+escapeHtml(t.doseText):''}</div>
     </button>`;
@@ -684,33 +697,32 @@ function computeSleepPrediction(babyId){
 function renderSleepPrediction(){
   const el = document.getElementById('sleepPredictionWrap');
   const babyIds = activeBabyIds();
-  const rows = babyIds.map(id=>{
+  const chips = babyIds.map(id=>{
     const b = baby(id);
     const pred = computeSleepPrediction(id);
     if(pred.status==='not_enough'){
-      return `<div class="predict-row">
-        <div class="predict-baby"><span class="dot" style="background:${b.color}"></span>${escapeHtml(b.name)}</div>
-        <div class="predict-hint">încă ${Math.max(1, pred.need - pred.have)} somnuri până la prima predicție</div>
+      return `<div class="upcoming-chip predict-chip">
+        <div class="uc-title"><span class="uc-icon">🌙</span> ${escapeHtml(b.name)}</div>
+        <div class="uc-sub">încă ${Math.max(1, pred.need - pred.have)} somnuri până la predicție</div>
       </div>`;
     }
     if(pred.status==='sleeping'){
-      return `<div class="predict-row">
-        <div class="predict-baby"><span class="dot" style="background:${b.color}"></span>${escapeHtml(b.name)}</div>
-        <div style="text-align:right"><div class="predict-val">doarme acum</div><div class="predict-sub">de la ${fmtTime(pred.since)}</div></div>
+      return `<div class="upcoming-chip predict-chip">
+        <div class="uc-title"><span class="uc-icon">🌙</span> ${escapeHtml(b.name)}</div>
+        <div class="uc-time">doarme acum</div>
+        <div class="uc-sub">de la ${fmtTime(pred.since)}</div>
       </div>`;
     }
     const windowH = Math.floor(pred.avgWindowMs/3600000);
     const windowM = Math.round((pred.avgWindowMs%3600000)/60000);
     const isPast = new Date(pred.predictedTime) < new Date();
-    return `<div class="predict-row">
-      <div class="predict-baby"><span class="dot" style="background:${b.color}"></span>${escapeHtml(b.name)}</div>
-      <div style="text-align:right">
-        <div class="predict-val">${isPast?'de acum câteva minute':fmtTime(pred.predictedTime)}</div>
-        <div class="predict-sub">fereastră trează tipică: ~${windowH>0?windowH+'h ':''}${windowM}min</div>
-      </div>
+    return `<div class="upcoming-chip predict-chip">
+      <div class="uc-title"><span class="uc-icon">🌙</span> ${escapeHtml(b.name)}</div>
+      <div class="uc-time">${isPast?'de acum câteva minute':fmtTime(pred.predictedTime)}</div>
+      <div class="uc-sub">~${windowH>0?windowH+'h ':''}${windowM}min veghe</div>
     </div>`;
   }).join('');
-  el.innerHTML = `<div class="predict-card"><div class="predict-title">🌙 Predicție somn</div>${rows}</div>`;
+  el.innerHTML = `<h2 class="section-title">Predicție somn</h2><div class="upcoming-band predict-band">${chips}</div>`;
 }
 
 /* ================= RENDER: TIMELINE ================= */
@@ -1049,30 +1061,67 @@ function renderMedsStatusFilter(){
 
 let medListExpanded = {}; // stare doar de UI (nu se salvează): true = arată toate dozele, altfel doar următoarele 3 nebifate
 
-function isOccurrenceGiven(group, occ){
-  return group.every(p=> state.logs.medDoses.some(d=>
-    d.planId===p.id && Math.abs(new Date(d.scheduledTime||d.time) - occ) < 30*60*1000
-  ));
+/* Fiecare "occurrence" e { time: Date, given: bool }. Dozele deja date apar cu ora
+   lor REALĂ înregistrată (nu programată); dozele viitoare se calculează pornind
+   de la ultima doză reală + interval — deci o editare de oră recalculează automat
+   tot ce urmează, fără niciun cod suplimentar. */
+function setOccurrenceGiven(group, occ){
+  const timeISO = occ.time.toISOString();
+  group.forEach(p=>{
+    state.logs.medDoses.push({ id: uid(), planId: p.id, babyId: p.babyId, name: p.name, doseText: p.doseText, scheduledTime: timeISO, time: timeISO, notes:'' });
+  });
 }
-function markOccurrence(group, occ, given){
-  if(given){
-    group.forEach(p=>{
-      state.logs.medDoses.push({ id: uid(), planId: p.id, babyId: p.babyId, name: p.name, doseText: p.doseText, scheduledTime: occ.toISOString(), time: occ.toISOString(), notes:'' });
-    });
-  } else {
-    group.forEach(p=>{
-      const idx = state.logs.medDoses.findIndex(d=> d.planId===p.id && Math.abs(new Date(d.scheduledTime||d.time) - occ) < 30*60*1000);
-      if(idx>-1) state.logs.medDoses.splice(idx,1);
-    });
-  }
+function unsetOccurrenceGiven(group, occ){
+  const timeISO = occ.time.toISOString();
+  group.forEach(p=>{
+    const idx = state.logs.medDoses.findIndex(d=> d.planId===p.id && d.time === timeISO);
+    if(idx>-1) state.logs.medDoses.splice(idx,1);
+  });
+}
+function editOccurrenceTime(group, occ, newTimeISO){
+  const oldTimeISO = occ.time.toISOString();
+  group.forEach(p=>{
+    const d = state.logs.medDoses.find(x=> x.planId===p.id && x.time === oldTimeISO);
+    if(d) d.time = newTimeISO;
+  });
 }
 function nextUncheckedOccurrences(plan, group, limit=3){
   const occurrences = generatePlanOccurrences(plan);
   const rows = occurrences
-    .map((occ,idx)=> ({occ, idx, given: isOccurrenceGiven(group, occ)}))
+    .map((o,idx)=> ({...o, idx}))
     .filter(r=>!r.given)
     .slice(0, limit);
   return { occurrences, rows };
+}
+
+/* mini-sheet pt. editarea orei reale de administrare (întârziat/devreme) */
+function openDoseTimeEditor(plan, group, occ, onSaved){
+  const refBaby = baby(plan.babyId);
+  renderSheet(`
+    <div class="sheet-handle"></div>
+    <h3>Ora administrării</h3>
+    <div class="sheet-sub">${escapeHtml(plan.name)} — ${escapeHtml(planGroupLabel(plan))}</div>
+    <div class="form-group"><label class="form-label">Data</label><input type="date" id="dtDate" value="${toDateInput(occ.time)}"></div>
+    <div class="form-group"><label class="form-label">Ora</label><input type="time" id="dtTime" value="${toTimeInput(occ.time)}"></div>
+    <div class="sheet-actions">
+      <button class="btn-cancel" id="dtCancel">Renunță</button>
+      <button class="btn-primary" id="dtSave" style="background:${refBaby.color}">Salvează</button>
+    </div>
+  `);
+  document.getElementById('dtCancel').onclick = closeSheet;
+  document.getElementById('dtSave').onclick = ()=>{
+    try{
+      const newTimeISO = combineDateAndTime(document.getElementById('dtDate').value, document.getElementById('dtTime').value);
+      if(occ.given){
+        editOccurrenceTime(group, occ, newTimeISO);
+      } else {
+        setOccurrenceGiven(group, { time: new Date(newTimeISO) });
+      }
+      scheduleSave();
+      closeSheet();
+      onSaved();
+    }catch(err){ console.error(err); alert('Eroare la salvare.'); }
+  };
 }
 
 function renderMedPlans(){
@@ -1128,7 +1177,7 @@ function renderMedPlans(){
     let occurrences, rows;
     if(expanded){
       occurrences = generatePlanOccurrences(plan);
-      rows = occurrences.map((occ,idx)=> ({occ, idx, given: isOccurrenceGiven(group, occ)}));
+      rows = occurrences.map((o,idx)=> ({...o, idx}));
     } else {
       const result = nextUncheckedOccurrences(plan, group, 3);
       occurrences = result.occurrences;
@@ -1141,10 +1190,13 @@ function renderMedPlans(){
     } else if(!rows.length){
       dosesHtml = `<div class="tl-empty" style="padding:14px 4px;font-size:12.5px;">Toate dozele au fost administrate.</div>`;
     } else {
-      dosesHtml = rows.map(r=>`<label class="dose-check-row" data-plan="${plan.id}" data-occ-idx="${r.idx}">
-        <input type="checkbox" ${r.given?'checked':''}>
-        <span>${r.occ.toLocaleDateString('ro-RO')} – ${fmtTime(r.occ.toISOString())}</span>
-      </label>`).join('');
+      dosesHtml = rows.map(r=>`<div class="dose-check-row" data-plan="${plan.id}" data-occ-idx="${r.idx}">
+        <label class="dose-check-label">
+          <input type="checkbox" ${r.given?'checked':''}>
+          <span>${dayLabelRelative(r.time.toISOString())} – ${fmtTime(r.time.toISOString())}</span>
+        </label>
+        <button class="dose-edit-btn" data-edit-occ="${r.idx}" aria-label="Editează ora">✎</button>
+      </div>`).join('');
     }
 
     return `<div class="med-plan-card ${plan.paused?'med-plan-paused':''} ${finished?'med-plan-finished':''}" data-id="${plan.id}">
@@ -1165,7 +1217,7 @@ function renderMedPlans(){
           <span>${expanded?'Toate dozele':'Următoarele doze'}</span>
           <span class="dose-arrow ${expanded?'open':''}">▾</span>
         </button>
-        <div class="dose-check-list-inline">${dosesHtml}</div>
+        <div class="dose-check-list-inline" data-plan-occ="${plan.id}">${dosesHtml}</div>
       </div>
     </div>`;
   }).join('');
@@ -1192,18 +1244,25 @@ function renderMedPlans(){
     };
   });
   el.querySelectorAll('.dose-check-row').forEach(row=>{
+    const plan = state.logs.medPlans.find(p=>p.id===row.dataset.plan);
+    const group = getPlanGroup(plan);
     const cb = row.querySelector('input[type=checkbox]');
     cb.onchange = ()=>{
       try{
-        const plan = state.logs.medPlans.find(p=>p.id===row.dataset.plan);
-        const group = getPlanGroup(plan);
         const occurrences = generatePlanOccurrences(plan);
         const occ = occurrences[Number(row.dataset.occIdx)];
-        markOccurrence(group, occ, cb.checked);
+        if(cb.checked) setOccurrenceGiven(group, occ); else unsetOccurrenceGiven(group, occ);
         scheduleSave();
         row.classList.add('dose-check-row-settled');
         setTimeout(()=> renderMedPlans(), 1500);
       }catch(err){ console.error(err); alert('Eroare la salvare.'); }
+    };
+    const editBtn = row.querySelector('[data-edit-occ]');
+    editBtn.onclick = (e)=>{
+      e.stopPropagation();
+      const occurrences = generatePlanOccurrences(plan);
+      const occ = occurrences[Number(editBtn.dataset.editOcc)];
+      openDoseTimeEditor(plan, group, occ, ()=> renderMedPlans());
     };
   });
 }
@@ -1298,16 +1357,24 @@ function renderMeds(){ applyBackgroundTint(); renderMedsBabyToggle(); renderMeds
 
 /* ---- generează toate momentele programate ale unui plan (trecute + viitoare) ---- */
 function generatePlanOccurrences(plan, windowDays=30){
-  const occurrences = [];
-  let t = new Date(plan.startAt);
+  const givenDoses = state.logs.medDoses
+    .filter(d=> d.planId===plan.id)
+    .sort((a,b)=> new Date(a.time) - new Date(b.time));
+
+  const occurrences = givenDoses.map(d=> ({ time: new Date(d.time), given:true }));
+
   const now = new Date();
   const windowEnd = new Date(now.getTime() + windowDays*24*3600000);
-  let guard = 0, count = 0;
+  let count = givenDoses.length;
+  let t = givenDoses.length
+    ? new Date(new Date(givenDoses[givenDoses.length-1].time).getTime() + plan.intervalHours*3600000)
+    : new Date(plan.startAt);
+  let guard = 0;
   while(guard < 200){
     if(plan.endType==='count' && plan.maxDoses && count >= plan.maxDoses) break;
     if(plan.endType==='date' && plan.endDate && t > new Date(plan.endDate+'T23:59:59')) break;
     if(plan.endType==='never' && t > windowEnd) break;
-    occurrences.push(new Date(t));
+    occurrences.push({ time: new Date(t), given:false });
     count++;
     t = new Date(t.getTime() + plan.intervalHours*3600000);
     guard++;
@@ -1315,7 +1382,6 @@ function generatePlanOccurrences(plan, windowDays=30){
   return occurrences;
 }
 
-/* ---- ecran de listă cu bifat, per plan (sau per grup "Ambele") ---- */
 function openMedPlanSheet(existingId){
   const plan = existingId ? state.logs.medPlans.find(p=>p.id===existingId) : null;
   const babyIds = plan ? [plan.babyId] : medsFilterIds();
@@ -2028,10 +2094,13 @@ function renderTabletMedsPane(){
     const { rows } = nextUncheckedOccurrences(plan, group, 3);
 
     const dosesHtml = rows.length
-      ? rows.map(r=>`<label class="dose-check-row" data-plan="${plan.id}" data-occ-idx="${r.idx}">
-          <input type="checkbox">
-          <span>${r.occ.toLocaleDateString('ro-RO')} – ${fmtTime(r.occ.toISOString())}</span>
-        </label>`).join('')
+      ? rows.map(r=>`<div class="dose-check-row" data-plan="${plan.id}" data-occ-idx="${r.idx}">
+          <label class="dose-check-label">
+            <input type="checkbox">
+            <span>${dayLabelRelative(r.time.toISOString())} – ${fmtTime(r.time.toISOString())}</span>
+          </label>
+          <button class="dose-edit-btn" data-edit-occ="${r.idx}" aria-label="Editează ora">✎</button>
+        </div>`).join('')
       : `<div class="tl-empty" style="padding:8px 4px;font-size:13px;">Toate dozele administrate.</div>`;
 
     return `<div class="tablet-meds-row">
@@ -2041,17 +2110,24 @@ function renderTabletMedsPane(){
   }).join('');
 
   el.querySelectorAll('.dose-check-row').forEach(row=>{
+    const plan = state.logs.medPlans.find(p=>p.id===row.dataset.plan);
+    const group = getPlanGroup(plan);
     const cb = row.querySelector('input[type=checkbox]');
     cb.onchange = ()=>{
       try{
-        const plan = state.logs.medPlans.find(p=>p.id===row.dataset.plan);
-        const group = getPlanGroup(plan);
         const occurrences = generatePlanOccurrences(plan);
         const occ = occurrences[Number(row.dataset.occIdx)];
-        markOccurrence(group, occ, cb.checked);
+        if(cb.checked) setOccurrenceGiven(group, occ); else unsetOccurrenceGiven(group, occ);
         scheduleSave();
         setTimeout(()=> renderTabletMedsPane(), 1500);
       }catch(err){ console.error(err); alert('Eroare la salvare.'); }
+    };
+    const editBtn = row.querySelector('[data-edit-occ]');
+    editBtn.onclick = (e)=>{
+      e.stopPropagation();
+      const occurrences = generatePlanOccurrences(plan);
+      const occ = occurrences[Number(editBtn.dataset.editOcc)];
+      openDoseTimeEditor(plan, group, occ, ()=> renderTabletMedsPane());
     };
   });
 }

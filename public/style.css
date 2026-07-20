@@ -175,6 +175,8 @@ main{ flex:1; padding: 14px 18px 130px; }
 .upcoming-chip .uc-title{ font-weight:700; font-size:14px; display:flex; align-items:center; gap:5px; white-space:nowrap; color: var(--text); }
 .upcoming-chip .uc-time{ font-family: var(--font-display); font-size:17px; margin-top:3px; color: var(--text); }
 .upcoming-chip .uc-sub{ font-size:12px; color: var(--text-dim); margin-top:1px; white-space:nowrap; }
+.uc-icon{ font-size:16px; display:inline-block; vertical-align:-2px; }
+.predict-band{ margin-top:0; }
 
 /* ============ QUICK ACTIONS ============ */
 .quick-grid{ display:grid; grid-template-columns: repeat(3,1fr); gap:10px; }
@@ -217,7 +219,7 @@ main{ flex:1; padding: 14px 18px 130px; }
 .tl-body{ flex:1; min-width:0; }
 .tl-title{ font-weight:700; font-size:16px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
 .tl-title .baby-dot{ width:7px; height:7px; border-radius:50%; display:inline-block; flex-shrink:0; }
-.tl-baby-name{ font-weight:600; font-size:18px; color: var(--text-dim); background: var(--surface-2); padding:2px 7px; border-radius:100px; }
+.tl-baby-name{ font-weight:600; font-size:13px; color: var(--text-dim); background: var(--surface-2); padding:2px 7px; border-radius:100px; }
 .tl-meta{ color: var(--text-dim); font-size:14.5px; margin-top:3px; }
 .tl-notes{ color: var(--text-dim); font-size:14.5px; margin-top:4px; font-style:italic; }
 .tl-empty{ text-align:center; color: var(--text-faint); padding: 40px 20px; font-size:16px; }
@@ -269,8 +271,15 @@ main{ flex:1; padding: 14px 18px 130px; }
 .dose-arrow{ transition: transform .2s ease; font-size:20px; line-height:1; }
 .dose-arrow.open{ transform: rotate(180deg); }
 .dose-check-list-inline{ display:flex; flex-direction:column; gap:2px; max-height:230px; overflow-y:auto; margin-top:4px; }
-.dose-check-row{ display:flex; align-items:center; gap:10px; padding:7px 4px; border-bottom:1px solid var(--border); font-size:15px; cursor:pointer; }
-.dose-check-row input[type=checkbox]{ width:19px; height:19px; accent-color: var(--twinA); flex-shrink:0; }
+.dose-check-row{ display:flex; align-items:center; gap:8px; padding:2px 0; border-bottom:1px solid var(--border); }
+.dose-check-label{ display:flex; align-items:center; gap:12px; flex:1; padding:10px 4px; font-size:15px; cursor:pointer; }
+.dose-check-label input[type=checkbox]{ width:26px; height:26px; accent-color: var(--twinA); flex-shrink:0; }
+.dose-edit-btn{
+  width:38px; height:38px; border-radius:11px; flex-shrink:0;
+  background: var(--surface-2); border:1px solid var(--border); color: var(--text-dim);
+  font-size:16px; display:flex; align-items:center; justify-content:center;
+}
+.dose-edit-btn:active{ background: var(--surface); color: var(--text); }
 
 .agenda-day-label{ font-size:14px; color:var(--text-faint); font-weight:700; margin: 12px 2px 2px; text-transform:uppercase; letter-spacing:.06em; }
 .agenda-item{ background: var(--surface); border:1px solid var(--border); border-radius: var(--radius-md); padding: 11px 13px; display:flex; align-items:center; gap:11px; }
@@ -426,12 +435,13 @@ textarea{ resize:vertical; min-height: 54px; }
   padding: 16px 18px; margin-bottom:12px;
 }
 .tablet-meds-row.overdue{ border-color: var(--danger); }
-.tablet-meds-row .tmr-name{ font-weight:700; font-size:22px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+.tablet-meds-row .tmr-name{ font-weight:700; font-size: 18px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
 .tablet-meds-row .tmr-next{ color: var(--text-dim); font-size:15px; margin-top:3px; }
 .tablet-meds-row.overdue .tmr-next{ color: var(--danger); }
 .tablet-meds-row .tmr-dose-list{ display:flex; flex-direction:column; gap:2px; }
-.tablet-meds-row .dose-check-row{ font-size:15.5px; padding:9px 4px; }
-.tablet-meds-row .dose-check-row input[type=checkbox]{ width:22px; height:22px; }
+.tablet-meds-row .dose-check-label{ font-size:16.5px; padding:12px 4px; }
+.tablet-meds-row .dose-check-label input[type=checkbox]{ width:28px; height:28px; }
+.tablet-meds-row .dose-edit-btn{ width:44px; height:44px; font-size:18px; }
 
 /* ============ LAYOUT TABLETĂ ============ */
 @media (min-width: 900px){
@@ -440,4 +450,16 @@ textarea{ resize:vertical; min-height: 54px; }
     display:grid; grid-template-columns: 1fr 380px; gap:22px; align-items:start;
   }
   #app.dashboard-active .tablet-meds-pane{ display:block; }
+
+  /* iconița 💊 din chipsurile de medicamente, mai mare pe tabletă */
+  .uc-icon{ font-size:22px; }
+
+  /* bara de jos — box glass, ușor scoasă în evidență */
+  .bottombar{
+    bottom: 18px;
+    border-radius: 22px;
+    border: 1px solid var(--border);
+    background: rgba(42,44,60,.92);
+    box-shadow: 0 12px 32px rgba(0,0,0,.45);
+  }
 }
