@@ -268,7 +268,7 @@ main{ flex:1; padding: 14px 18px 130px; }
   width:100%; display:flex; align-items:center; justify-content:space-between;
   background:none; border:none; color:var(--text-dim); font-weight:700; font-size:14.5px; padding:4px 2px;
 }
-.dose-arrow{ transition: transform .2s ease; font-size:20px; line-height:1; }
+.dose-arrow{ transition: transform .2s ease; font-size:28px; line-height:1; }
 .dose-arrow.open{ transform: rotate(180deg); }
 .dose-check-list-inline{ display:flex; flex-direction:column; gap:2px; max-height:230px; overflow-y:auto; margin-top:4px; }
 .dose-check-row{ display:flex; align-items:center; gap:8px; padding:2px 0; border-bottom:1px solid var(--border); }
