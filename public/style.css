@@ -32,6 +32,7 @@
 
 *{ box-sizing: border-box; }
 html,body{ margin:0; padding:0; }
+html{ -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body{
   background: var(--bg);
   color: var(--text);
@@ -106,11 +107,12 @@ h1,h2,h3{ font-family: var(--font-display); margin:0; }
 }
 .twin-switch.hidden{ display:none; }
 .twin-tab{
-  flex:1; border:2px solid transparent; background:transparent; color: var(--text-dim);
-  padding: 11px 10px; border-radius: 100px; font-weight:700; font-size: 16px;
-  display:flex; align-items:center; justify-content:center; gap:7px;
+  flex:1; min-width:0; border:2px solid transparent; background:transparent; color: var(--text-dim);
+  padding: 11px 8px; border-radius: 100px; font-weight:700; font-size: 16px;
+  display:flex; align-items:center; justify-content:center; gap:6px;
   transition: background .2s ease, color .2s ease, border-color .25s ease;
 }
+.twin-tab span:not(.dot){ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
 .twin-tab .dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
 .twin-tab.active{ background: var(--surface-2); color: var(--text); }
 
@@ -175,7 +177,6 @@ main{ flex:1; padding: 14px 18px 130px; }
 .upcoming-chip .uc-title{ font-weight:700; font-size:14px; display:flex; align-items:center; gap:5px; white-space:nowrap; color: var(--text); }
 .upcoming-chip .uc-time{ font-family: var(--font-display); font-size:17px; margin-top:3px; color: var(--text); }
 .upcoming-chip .uc-sub{ font-size:12px; color: var(--text-dim); margin-top:1px; white-space:nowrap; }
-.upcoming-chip:not(.predict-chip) .uc-sub{ font-size: 19px; }
 .uc-icon{ font-size:16px; display:inline-block; vertical-align:-2px; }
 .predict-band{ margin-top:0; }
 
@@ -206,6 +207,7 @@ main{ flex:1; padding: 14px 18px 130px; }
 .chip{
   flex-shrink:0; padding: 7px 14px; border-radius:100px; background: var(--surface);
   border:1px solid var(--border); color: var(--text-dim); font-size:15px; font-weight:600;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;
 }
 .chip.active{ background: var(--surface-2); color: var(--text); border-color: var(--text-faint); }
 
@@ -261,7 +263,7 @@ main{ flex:1; padding: 14px 18px 130px; }
 .med-plan-next.finished{ color: var(--text-faint); font-weight:600; font-style:italic; }
 .med-plan-actions{ display:flex; gap:8px; margin-top:10px; }
 .med-plan-actions button{ flex:1; padding:9px; border-radius:10px; font-weight:700; font-size:14.5px; border:1px solid var(--border); background:var(--surface-2); color:var(--text); }
-.med-plan-icon-btn{ background:none; border:none; color:var(--text-faint); padding:12px; font-size:26px; }
+.med-plan-icon-btn{ background:none; border:none; color:var(--text-faint); padding:4px; font-size:18.5px; }
 .med-plan-paused, .med-plan-finished{ opacity:.55; }
 
 .dose-dropdown{ margin-top:10px; border-top:1px solid var(--border); padding-top:8px; }
@@ -269,16 +271,16 @@ main{ flex:1; padding: 14px 18px 130px; }
   width:100%; display:flex; align-items:center; justify-content:space-between;
   background:none; border:none; color:var(--text-dim); font-weight:700; font-size:14.5px; padding:4px 2px;
 }
-.dose-arrow{ transition: transform .2s ease; font-size:28px; line-height:1; }
+.dose-arrow{ transition: transform .2s ease; font-size:20px; line-height:1; }
 .dose-arrow.open{ transform: rotate(180deg); }
 .dose-check-list-inline{ display:flex; flex-direction:column; gap:2px; max-height:230px; overflow-y:auto; margin-top:4px; }
 .dose-check-row{ display:flex; align-items:center; gap:8px; padding:2px 0; border-bottom:1px solid var(--border); }
 .dose-check-label{ display:flex; align-items:center; gap:12px; flex:1; padding:10px 4px; font-size:15px; cursor:pointer; }
 .dose-check-label input[type=checkbox]{ width:26px; height:26px; accent-color: var(--twinA); flex-shrink:0; }
 .dose-edit-btn{
-  width:48px; height:50px; border-radius:14px; flex-shrink:0;
+  width:38px; height:38px; border-radius:11px; flex-shrink:0;
   background: var(--surface-2); border:1px solid var(--border); color: var(--text-dim);
-  font-size:22px; display:flex; align-items:center; justify-content:center;
+  font-size:16px; display:flex; align-items:center; justify-content:center;
 }
 .dose-edit-btn:active{ background: var(--surface); color: var(--text); }
 
@@ -436,7 +438,7 @@ textarea{ resize:vertical; min-height: 54px; }
   padding: 16px 18px; margin-bottom:12px;
 }
 .tablet-meds-row.overdue{ border-color: var(--danger); }
-.tablet-meds-row .tmr-name{ font-weight:700; font-size: 18px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+.tablet-meds-row .tmr-name{ font-weight:700; font-size:18px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
 .tablet-meds-row .tmr-next{ color: var(--text-dim); font-size:15px; margin-top:3px; }
 .tablet-meds-row.overdue .tmr-next{ color: var(--danger); }
 .tablet-meds-row .tmr-dose-list{ display:flex; flex-direction:column; gap:2px; }

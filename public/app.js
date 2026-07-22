@@ -277,7 +277,7 @@ function renderTwinSwitch(){
     const active = ui.currentBaby === b.id ? 'active' : '';
     const dot = b.color ? `<span class="dot" style="background:${b.color}"></span>` : '';
     const borderColor = (active && b.id!=='all') ? `style="border-color:${b.color}"` : '';
-    return `<button class="twin-tab ${active}" data-baby="${b.id}" ${borderColor}>${dot}${b.name}</button>`;
+    return `<button class="twin-tab ${active}" data-baby="${b.id}" ${borderColor}>${dot}<span>${escapeHtml(b.name)}</span></button>`;
   }).join('');
   el.querySelectorAll('.twin-tab').forEach(btn=>{
     btn.onclick = ()=> setCurrentBaby(btn.dataset.baby);
