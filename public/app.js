@@ -305,70 +305,9 @@ function renderTwinSwitch(){
   autoFitAll('#twinSwitch .twin-tab span:not(.dot)');
 }
 
-/* ================= RENDER: DASHBOARD — STATUS ================= */
+/* ================= RENDER: DASHBOARD ================= */
 
 function activeSleepFor(id){ return state.timers.sleep[id] || null; }
-function activeFeedFor(id){ return state.timers.feeding[id] || null; }
-function lastEntry(arr, babyId){
-  const filtered = arr.filter(e=>e.babyId===babyId);
-  if(!filtered.length) return null;
-  return filtered.reduce((a,b)=> new Date(a.end||a.start||a.time) > new Date(b.end||b.start||b.time) ? a : b);
-}
-
-function babyStatusInfo(b){
-  const sleeping = activeSleepFor(b.id);
-  const feeding = activeFeedFor(b.id);
-  const lastSleep = lastEntry(state.logs.sleep, b.id);
-  const lastFeed = lastEntry(state.logs.feeding, b.id);
-  const lastDiaper = lastEntry(state.logs.diaper, b.id);
-
-  let stateLabel, stateSub, activeClass='';
-  if(sleeping){
-    stateLabel = 'Doarme'; stateSub = 'de la ' + fmtTime(sleeping.start); activeClass='active-timer';
-  } else if(feeding){
-    const map = {breastL:'Alăptare (S)', breastR:'Alăptare (D)'};
-    stateLabel = map[feeding.subtype] || 'Mănâncă'; stateSub = 'de la ' + fmtTime(feeding.start); activeClass='active-timer';
-  } else {
-    stateLabel = 'Treaz';
-    stateSub = lastSleep ? `somn ${timeAgo(lastSleep.end||lastSleep.start)}` : 'fără date de somn';
-  }
-  return { stateLabel, stateSub, activeClass, lastFeed, lastDiaper };
-}
-
-function renderStatusRow(){
-  const el = document.getElementById('statusRow');
-  const animClass = babySwitchDirection === 'left' ? 'anim-left' : babySwitchDirection === 'right' ? 'anim-right' : '';
-  babySwitchDirection = null;
-
-  if(ui.currentBaby === 'all'){
-    el.className = 'status-row';
-    el.innerHTML = state.babies.map(b=>{
-      const info = babyStatusInfo(b);
-      return `<div class="status-card ${info.activeClass}" style="color:${b.color}">
-        <div class="baby-name" style="color:var(--text)"><span class="dot" style="background:${b.color}"></span>${escapeHtml(b.name)}</div>
-        <div class="state-label">${info.stateLabel}</div>
-        <div class="state-sub">${info.stateSub}</div>
-        <div class="state-sub" style="margin-top:6px;opacity:.8">🍼 ${info.lastFeed?timeAgo(info.lastFeed.end||info.lastFeed.start):'—'} · 💧 ${info.lastDiaper?timeAgo(info.lastDiaper.time):'—'}</div>
-      </div>`;
-    }).join('');
-  } else {
-    const b = baby(ui.currentBaby);
-    const info = babyStatusInfo(b);
-    el.className = 'status-single';
-    el.innerHTML = `<div class="status-single-inner ${info.activeClass}" style="border-color:${b.color}">
-      <div class="baby-name" style="color:var(--text)"><span class="dot" style="background:${b.color}"></span>${escapeHtml(b.name)}</div>
-      <div class="state-label" style="color:${b.color}">${info.stateLabel}</div>
-      <div class="state-sub">${info.stateSub}</div>
-      <div class="state-sub" style="margin-top:10px;opacity:.85">🍼 ${info.lastFeed?timeAgo(info.lastFeed.end||info.lastFeed.start):'—'} · 💧 ${info.lastDiaper?timeAgo(info.lastDiaper.time):'—'}</div>
-    </div>`;
-  }
-
-  if(animClass){
-    el.classList.remove('anim-left','anim-right');
-    void el.offsetWidth; // forțează reflow ca animația să ruleze din nou
-    el.classList.add(animClass);
-  }
-}
 
 /* ================= RENDER: UPCOMING TASKS BAND (din planurile de meds) ================= */
 
@@ -2165,7 +2104,6 @@ function renderAll(){
   applyBackgroundTint();
   document.getElementById('app').classList.toggle('dashboard-active', ui.view==='dashboard');
   renderTwinSwitch();
-  renderStatusRow();
   renderUpcomingBand();
   renderSleepPrediction();
   renderQuickGrid();
