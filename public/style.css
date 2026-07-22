@@ -170,11 +170,12 @@ main{ flex:1; padding: 14px 18px 130px; }
 .upcoming-band{ display:flex; gap:8px; overflow-x:auto; margin-top:10px; padding-bottom:2px; }
 .upcoming-band::-webkit-scrollbar{ display:none; }
 .upcoming-chip{
-  flex-shrink:0; min-width:132px; background: var(--amber-soft); border:1px solid rgba(227,178,60,.4);
+  flex-shrink:0; width:150px; max-width:150px; background: var(--amber-soft); border:1px solid rgba(227,178,60,.4);
   border-radius: var(--radius-md); padding: 9px 12px; text-align:left; color: var(--text);
 }
 .upcoming-chip.overdue{ background: var(--danger-soft); border-color: var(--danger); }
-.upcoming-chip .uc-title{ font-weight:700; font-size:14px; display:flex; align-items:center; gap:5px; white-space:nowrap; color: var(--text); }
+.upcoming-chip .uc-title{ font-weight:700; font-size:14px; display:flex; align-items:center; gap:5px; white-space:nowrap; color: var(--text); min-width:0; }
+.upcoming-chip .uc-name{ white-space:nowrap; overflow:hidden; min-width:0; display:inline-block; }
 .upcoming-chip .uc-time{ font-family: var(--font-display); font-size:17px; margin-top:3px; color: var(--text); }
 .upcoming-chip .uc-sub{ font-size:12px; color: var(--text-dim); margin-top:1px; white-space:nowrap; }
 .uc-icon{ font-size:16px; display:inline-block; vertical-align:-2px; }

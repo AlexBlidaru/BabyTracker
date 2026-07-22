@@ -51,6 +51,26 @@ const ICONS = {
 function uid(){ return Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4); }
 function nowISO(){ return new Date().toISOString(); }
 function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+
+/* micșorează dinamic fontul unui element până când textul încape pe un rând,
+   fără să se trunchieze sau să se rupă pe două rânduri (auto-size real) */
+function fitTextToWidth(el){
+  if(!el) return;
+  el.style.fontSize = '';
+  const baseSize = parseFloat(getComputedStyle(el).fontSize);
+  if(!baseSize) return;
+  const minSize = Math.max(9, baseSize * 0.55);
+  let size = baseSize;
+  let guard = 0;
+  while(el.scrollWidth > el.clientWidth + 1 && size > minSize && guard < 24){
+    size -= 0.5;
+    el.style.fontSize = size + 'px';
+    guard++;
+  }
+}
+function autoFitAll(selector){
+  document.querySelectorAll(selector).forEach(fitTextToWidth);
+}
 function parseNum(v){
   if(v === null || v === undefined) return null;
   const s = String(v).trim().replace(',', '.');
@@ -282,6 +302,7 @@ function renderTwinSwitch(){
   el.querySelectorAll('.twin-tab').forEach(btn=>{
     btn.onclick = ()=> setCurrentBaby(btn.dataset.baby);
   });
+  autoFitAll('#twinSwitch .twin-tab span:not(.dot)');
 }
 
 /* ================= RENDER: DASHBOARD — STATUS ================= */
@@ -380,12 +401,14 @@ function renderUpcomingBand(){
     const overdue = t.time < now;
     const babiesLbl = t.babyIds.length>1 ? 'Ambele' : baby(t.babyIds[0]).name;
     return `<button type="button" class="upcoming-chip ${overdue?'overdue':''}">
-      <div class="uc-title"><span class="uc-icon">${t.icon}</span> ${escapeHtml(t.name)}</div>
+      <div class="uc-title"><span class="uc-icon">${t.icon}</span> <span class="uc-name">${escapeHtml(t.name)}</span></div>
       <div class="uc-time">${overdue?'acum':relativeUntil(t.time)}</div>
       <div class="uc-sub">${escapeHtml(babiesLbl)}${t.doseText?' · '+escapeHtml(t.doseText):''}</div>
     </button>`;
   }).join('');
   el.querySelectorAll('.upcoming-chip').forEach(chip=>{ chip.onclick = ()=> switchView('meds'); });
+  autoFitAll('#upcomingBand .uc-name');
+  autoFitAll('#upcomingBand .uc-sub');
 }
 
 /* ================= RENDER: QUICK ACTIONS ================= */
@@ -702,13 +725,13 @@ function renderSleepPrediction(){
     const pred = computeSleepPrediction(id);
     if(pred.status==='not_enough'){
       return `<div class="upcoming-chip predict-chip">
-        <div class="uc-title"><span class="uc-icon">🌙</span> ${escapeHtml(b.name)}</div>
+        <div class="uc-title"><span class="uc-icon">🌙</span> <span class="uc-name">${escapeHtml(b.name)}</span></div>
         <div class="uc-sub">încă ${Math.max(1, pred.need - pred.have)} somnuri până la predicție</div>
       </div>`;
     }
     if(pred.status==='sleeping'){
       return `<div class="upcoming-chip predict-chip">
-        <div class="uc-title"><span class="uc-icon">🌙</span> ${escapeHtml(b.name)}</div>
+        <div class="uc-title"><span class="uc-icon">🌙</span> <span class="uc-name">${escapeHtml(b.name)}</span></div>
         <div class="uc-time">doarme acum</div>
         <div class="uc-sub">de la ${fmtTime(pred.since)}</div>
       </div>`;
@@ -717,12 +740,14 @@ function renderSleepPrediction(){
     const windowM = Math.round((pred.avgWindowMs%3600000)/60000);
     const isPast = new Date(pred.predictedTime) < new Date();
     return `<div class="upcoming-chip predict-chip">
-      <div class="uc-title"><span class="uc-icon">🌙</span> ${escapeHtml(b.name)}</div>
+      <div class="uc-title"><span class="uc-icon">🌙</span> <span class="uc-name">${escapeHtml(b.name)}</span></div>
       <div class="uc-time">${isPast?'de acum câteva minute':fmtTime(pred.predictedTime)}</div>
       <div class="uc-sub">~${windowH>0?windowH+'h ':''}${windowM}min veghe</div>
     </div>`;
   }).join('');
   el.innerHTML = `<h2 class="section-title">Predicție somn</h2><div class="upcoming-band predict-band">${chips}</div>`;
+  autoFitAll('#sleepPredictionWrap .uc-name');
+  autoFitAll('#sleepPredictionWrap .uc-sub');
 }
 
 /* ================= RENDER: TIMELINE ================= */
@@ -973,6 +998,7 @@ function openGrowthSheet(existingId){
 
   const deleteBtn = document.getElementById('gDelete');
   if(deleteBtn) deleteBtn.onclick = ()=>{
+    if(!confirm('Sigur ștergi această măsurătoare?')) return;
     const idx = state.logs.growth.findIndex(e=>e.id===existingId);
     if(idx>-1) state.logs.growth.splice(idx,1);
     scheduleSave(); closeSheet(); renderGrowth(); renderSettings();
@@ -1448,6 +1474,7 @@ function openMedPlanSheet(existingId){
   document.getElementById('mpCancel').onclick = closeSheet;
   if(plan){
     document.getElementById('mpDelete').onclick = ()=>{
+      if(!confirm('Sigur ștergi acest plan de tratament?')) return;
       const group = getPlanGroup(plan);
       group.forEach(p=>{
         const idx = state.logs.medPlans.findIndex(x=>x.id===p.id);
@@ -1808,6 +1835,7 @@ function openEditSheet(type, id){
 
   document.getElementById('eCancel').onclick = closeSheet;
   document.getElementById('eDelete').onclick = ()=>{
+    if(!confirm('Sigur ștergi această înregistrare?')) return;
     const idx = coll.findIndex(e=>e.id===id);
     if(idx>-1) coll.splice(idx,1);
     scheduleSave(); closeSheet(); renderAll();
@@ -1941,6 +1969,7 @@ function renderFeedbackList(){
     </div>`).join('');
   el.querySelectorAll('[data-del]').forEach(btn=>{
     btn.onclick = ()=>{
+      if(!confirm('Ștergi această notiță?')) return;
       const idx = state.appFeedback.findIndex(n=>n.id===btn.dataset.del);
       if(idx>-1) state.appFeedback.splice(idx,1);
       scheduleSave(); renderFeedbackList();
@@ -2167,4 +2196,14 @@ function render(){ renderAll(); }
     const sheetOpen = document.getElementById('sheetOverlay').classList.contains('open');
     if(!sheetOpen) window.location.reload();
   }, 15*60*1000);
+
+  let resizeTimeout;
+  window.addEventListener('resize', ()=>{
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(()=>{
+      renderTwinSwitch();
+      renderUpcomingBand();
+      renderSleepPrediction();
+    }, 200);
+  });
 })();
