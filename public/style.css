@@ -1,6 +1,6 @@
 /* ============ TOKENS ============ */
 :root{
-  --bg: #14141c;
+  --bg: #1c1c26;
   --bg-elev: #1b1c27;
   --surface: #21222f;
   --surface-2: #2a2c3c;
@@ -145,7 +145,7 @@ main{ flex:1; padding: 14px 18px 130px; }
 .upcoming-chip:not(.predict-chip) .uc-sub{ font-size: 18px; }
 .predict-chip .uc-name{ font-size: 17px; }
 .predict-chip .uc-sub{ font-size: 16px; }
-.predict-chip{ width: 210px; max-width: 210px; }
+
 
 /* ============ QUICK ACTIONS ============ */
 .quick-grid{ display:grid; grid-template-columns: repeat(3,1fr); gap:10px; }
